@@ -927,7 +927,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
 <script>
 (() => {
   /* Version unten unter „Daten & Sicherung“: 1.x.y – x = größere Updates (z. B. Routen), y = kleine Fixes/Anpassungen */
-  const APP_VERSION = "1.2.0-beta.4";
+  const APP_VERSION = "1.2.0-beta.5";
 
   /* ---------- Speicher (alte Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
   const LS = {
@@ -1573,9 +1573,11 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   }
   function toggleTour(nr) {
     const i = tour.seq.findIndex((it) => it.nr === nr), adding = i < 0, removed = adding ? null : tour.seq[i];
-    if (adding) { if (tour.manual && posOf(nr)) insertCheapest({ nr }, startPoint()); else tour.seq.push({ nr }); }
+    let added = null;
+    if (adding) { added = { nr }; if (tour.manual && posOf(nr)) insertCheapest(added, startPoint()); else tour.seq.push(added); }
     else tour.seq.splice(i, 1);
     refreshMarker(nr); tourChanged({ reorder: !tour.manual });
+    if (added && tour.manual) refineInsert(added);
     if (detailNr === nr) paintDetail();
     toast(adding ? `Nr. ${nr} zur Tour hinzugefügt (${tourStamps().length})` : `Nr. ${nr} aus der Tour entfernt`, {
       label: "Rückgängig", fn: () => {
@@ -1680,7 +1682,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
       const b = document.createElement("b");
       b.textContent = kmTxt(r.km) + (r.up != null ? ` · ↑ ${Math.round(r.up)} m ↓ ${Math.round(r.down)} m` : "");
       const sm = document.createElement("small");
-      sm.textContent = `ca. ${durTxt(r.min)} Gehzeit · ${r.round ? "Rundtour" : "Strecke"}${r.fromMe ? " ab Standort" : ""} · berechnet mit ${r.src}`;
+      sm.textContent = `ca. ${durTxt(r.min)} Gehzeit · ${r.round ? "Rundtour" : "Strecke"}${r.fromMe ? " ab Standort" : ""} · berechnet mit ${r.src}${r.sortedBy && !tour.manual ? ` · Reihenfolge nach ${r.sortedBy}` : ""}`;
       tSum.append(b, sm);
       if (r.stale || routing) { const st = document.createElement("small"); st.className = "stale"; st.textContent = "Route wird aktualisiert …"; tSum.appendChild(st); }
     }
@@ -1711,7 +1713,8 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     if (!sort || e.pointerId !== sort.id) return;
     const br = tBody.getBoundingClientRect();
     if (e.clientY < br.top + 56) tBody.scrollTop -= 10; else if (e.clientY > br.bottom - 56) tBody.scrollTop += 10;
-    const dy = e.clientY - sort.y0 + (tBody.scrollTop - sort.s0);
+    const rf = sort.rects[sort.from], r0 = sort.rects[0], rN = sort.rects[sort.rects.length - 1];
+    const dy = Math.max(r0.top - rf.top, Math.min(rN.bottom - rf.bottom, e.clientY - sort.y0 + (tBody.scrollTop - sort.s0)));
     sort.li.style.transform = `translateY(${dy}px)`;
     const c = sort.rects[sort.from].top + sort.h / 2 + dy;
     let to = sort.from;
@@ -1777,13 +1780,23 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     toast("Tour geleert", { label: "Rückgängig", fn: () => { tour.seq = before; saveTour(); renderVias(); nrs.forEach((nr) => refreshMarker(nr)); paintTour(); } });
   });
 
-  /* Reihenfolge der Stempel: nächster Nachbar + 2-opt auf Luftlinie */
-  function optimize(pts, start, round) {
-    const all = start ? [start, ...pts] : pts.slice();
-    const n = all.length; if (n < 3) return pts.slice();
-    const D = all.map((a) => all.map((b) => hav(a, b)));
+  /* Entfernungen zwischen allen Punkten: echte Fußwege (OSRM-Tabelle), sonst Luftlinie */
+  async function realMatrix(pts) {
+    const air = () => pts.map((a) => pts.map((b) => hav(a, b)));
+    if (pts.length < 2) return { D: air(), real: false };
+    const ll = pts.map((p) => `${p.lon.toFixed(5)},${p.lat.toFixed(5)}`).join(";");
+    try {
+      const j = await fetchJson(`https://routing.openstreetmap.de/routed-foot/table/v1/foot/${ll}?annotations=distance`, 20000);
+      if (j.code !== "Ok" || !Array.isArray(j.distances)) throw new Error(j.code);
+      return { D: j.distances.map((row, i) => row.map((d, k) => d == null ? hav(pts[i], pts[k]) * 1.6 : d / 1000)), real: true };
+    } catch (e) { return { D: air(), real: false }; }
+  }
+  /* Reihenfolge: immer zum nächsten noch nicht erreichten Punkt (nach D), danach 2-opt */
+  function orderIdx(n, D, hasStart, round) {
+    const all = [...Array(n).keys()];
+    if (n < 3) return hasStart ? all.slice(1).map((i) => i - 1) : all;
     const len = (r) => { let s = 0; for (let i = 0; i < r.length - 1; i++) s += D[r[i]][r[i + 1]]; return round ? s + D[r[r.length - 1]][r[0]] : s; };
-    const nn = (first) => { const r = [first], left = new Set(all.map((_, i) => i)); left.delete(first);
+    const nn = (first) => { const r = [first], left = new Set(all); left.delete(first);
       while (left.size) { const last = r[r.length - 1]; let best = null; for (const j of left) if (best === null || D[last][j] < D[last][best]) best = j; r.push(best); left.delete(best); } return r; };
     const twoOpt = (r, fixFirst) => {
       let improved = true, cur = len(r);
@@ -1796,19 +1809,39 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
       }
       return r;
     };
-    let best;
-    if (start) best = twoOpt(nn(0), true).slice(1).map((i) => i - 1);
-    else { best = null; for (let s = 0; s < n; s++) { const r = twoOpt(nn(s), round); if (!best || len(r) < len(best)) best = r; } }
-    return best.map((i) => pts[i]);
+    if (hasStart) return twoOpt(nn(0), true).slice(1).map((i) => i - 1);
+    let best = null;
+    for (let s0 = 0; s0 < n; s0++) { const r = twoOpt(nn(s0), round); if (!best || len(r) < len(best)) best = r; }
+    return best;
   }
-  /* Stempel neu ordnen, eigene Wegpunkte danach wieder mit kleinstem Umweg einsetzen */
-  function reorderTour(start) {
-    const stamps = tour.seq.filter((it) => it.nr && posOf(it.nr)).map((it) => { const p = posOf(it.nr); return { nr: it.nr, lat: p.lat, lon: p.lon }; });
-    const noPos = tour.seq.filter((it) => it.nr && !posOf(it.nr)), vias = tourVias();
-    tour.seq = optimize(stamps, start, tour.round).map((p) => ({ nr: p.nr }));
-    for (const v of vias) insertCheapest(v, start);
-    tour.seq = tour.seq.concat(noPos);
+  /* Stempel und Wegpunkte nach Wegstrecke ordnen; liefert true, wenn echte Fußwege genutzt wurden */
+  async function reorderTour(start) {
+    const items = tour.seq.filter((it) => ptOf(it)), noPos = tour.seq.filter((it) => !ptOf(it));
+    const all = (start ? [start] : []).concat(items.map(ptOf));
+    const { D, real } = await realMatrix(all);
+    tour.seq = orderIdx(all.length, D, !!start, tour.round).map((i) => items[i]).concat(noPos);
     tour.dirty = false; saveTour();
+    return real;
+  }
+  /* neuen Stempel bei eigener Reihenfolge dort einsetzen, wo er nach Wegstrecke den kleinsten Umweg macht */
+  async function refineInsert(item) {
+    const start = startPoint(), rest = tour.seq.filter((x) => x !== item);
+    const posIdx = rest.map((x, i) => (ptOf(x) ? i : -1)).filter((i) => i >= 0);
+    if (posIdx.length < 2 || !ptOf(item)) return;
+    const pts = (start ? [start] : []).concat(posIdx.map((i) => ptOf(rest[i])), [ptOf(item)]);
+    const { D, real } = await realMatrix(pts);
+    if (!real || !tour.seq.includes(item)) return;
+    const off = start ? 1 : 0, X = pts.length - 1, m = posIdx.length;
+    let bestJ = m, bestCost = Infinity;
+    for (let j = 0; j <= m; j++) {
+      const prev = j > 0 ? off + j - 1 : (start ? 0 : (tour.round ? off + m - 1 : -1));
+      const next = j < m ? off + j : (tour.round ? (start ? 0 : off) : -1);
+      const cost = (prev >= 0 ? D[prev][X] : 0) + (next >= 0 ? D[X][next] : 0) - (prev >= 0 && next >= 0 ? D[prev][next] : 0);
+      if (cost < bestCost) { bestCost = cost; bestJ = j; }
+    }
+    const next = rest.slice(); next.splice(bestJ < m ? posIdx[bestJ] : rest.length, 0, item);
+    if (next.indexOf(item) === tour.seq.indexOf(item)) return;
+    tour.seq = next; tourChanged();
   }
   const waitForMe = (ms) => new Promise((res) => {
     if (me) return res(true);
@@ -1855,10 +1888,11 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
       start = { lat: me.lat, lon: me.lng };
     }
     if (keyCount() < 2) { if (!quiet) toast("Für eine Route mindestens zwei Punkte auswählen."); return false; }
-    if (tour.dirty && !tour.manual) reorderTour(start);
+    routing = true; paintTour();
+    let sortedBy = null;
+    if (tour.dirty && !tour.manual) sortedBy = (await reorderTour(start)) ? "Wegstrecke" : "Luftlinie";
     const keys = (start ? [start] : []).concat(tour.seq.map(ptOf).filter(Boolean));
     if (tour.round) keys.push(keys[0]);
-    routing = true; paintTour();
     let res = null;
     try { res = await viaBRouter(keys); } catch (e) { try { res = await viaOsrm(keys); } catch (e2) { res = null; } }
     routing = false;
@@ -1868,7 +1902,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
       return false;
     }
     if (routeLayer) routeLayer.remove();
-    routeRes = Object.assign(res, routeStats(res.coords), { keys, round: tour.round, fromMe: !!start, stale: false });
+    routeRes = Object.assign(res, routeStats(res.coords), { keys, round: tour.round, fromMe: !!start, stale: false, sortedBy: sortedBy || (routeRes && routeRes.sortedBy) || null });
     const ll = res.coords.map((c) => [c[0], c[1]]);
     routeLayer = L.layerGroup([
       L.polyline(ll, { color: "#FFFFFF", weight: 9, opacity: .9, interactive: false }),
