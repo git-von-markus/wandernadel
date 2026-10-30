@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0" stop-color="#3A7047"/>
+      <stop offset="1" stop-color="#244A2D"/>
+    </radialGradient>
+    <clipPath id="disc"><circle cx="256" cy="256" r="128"/></clipPath>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="176" fill="#F6F2E8"/>
+  <g transform="rotate(-9 256 256)">
+    <circle cx="256" cy="256" r="150" fill="none" stroke="#6A2C8C" stroke-width="12"/>
+    <circle cx="256" cy="256" r="128" fill="none" stroke="#6A2C8C" stroke-width="4"/>
+    <g clip-path="url(#disc)" fill="#6A2C8C">
+      <!-- hintere Harzrücken -->
+      <path d="M110 318 C150 270 196 262 232 280 C276 250 336 246 404 300 L404 318 Z" opacity=".42"/>
+      <!-- Brocken-Kuppe -->
+      <path d="M110 318 C158 304 200 250 262 236 C326 248 366 290 404 308 L404 318 Z"/>
+      <!-- Sendeturm auf dem Brocken -->
+      <rect x="257" y="186" width="10" height="54"/>
+      <rect x="250" y="193" width="24" height="16" rx="4"/>
+      <rect x="260.5" y="166" width="3" height="22"/>
+      <!-- Wanderweg -->
+      <path d="M214 316 C232 296 246 280 254 252" fill="none" stroke="#F6F2E8" stroke-width="7" stroke-linecap="round" stroke-dasharray="1 15"/>
+    </g>
+    <circle cx="190" cy="186" r="15" fill="#6A2C8C"/>
+    <text x="256" y="360" text-anchor="middle" fill="#6A2C8C" font-family="DejaVu Sans, Arial, sans-serif" font-weight="700" font-size="34" letter-spacing="6">HARZ</text>
+  </g>
+</svg>

@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Harzer Stempelkarte</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Stempelkarte">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#19221C" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Layout: Kopfleiste · Vollflächige Karte · Liste als Seitenleiste (Desktop) bzw. Bottom-Sheet (Handy) */
+:root {
+  --bg: #F4F6F1;
+  --surface: #FFFFFF;
+  --fg: #1C2920;
+  --muted: #5D6A60;
+  --line: #D8DED3;
+  --box: #2F5D3A;        /* Grün der Stempelkästen */
+  --box-soft: #E3ECE2;
+  --ink: #6A2C8C;        /* Stempelkissen-Violett */
+  --ink-soft: #F0E7F5;
+  --bronze: #A0652A;
+  --silver: #7F878F;
+  --gold: #B38A14;
+  --rose: #C0577E;
+  --garnet: #9B2D3C;
+  --copper: #B5532F;
+  --stone: #5E6B66;
+  /* Marker sitzen immer auf hellen Kartenkacheln: feste Werte */
+  --pin-open-bg: #FFFFFF;
+  --pin-open-fg: #2F5D3A;
+  --pin-done-bg: #6A2C8C;
+  --pin-done-fg: #FFFFFF;
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r: 10px;
+  --shadow: 0 6px 24px rgba(20, 35, 25, .16);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111813; --surface: #19221C; --fg: #E6ECE4; --muted: #9AA79D; --line: #2B372F;
+    --box: #86BE93; --box-soft: #213127; --ink: #C391E2; --ink-soft: #2D2136;
+    --bronze: #D09358; --silver: #AEB6BD; --gold: #E0B843;
+    --rose: #E58AAD; --garnet: #E0717F; --copper: #E5835E; --stone: #9FADA7;
+    --shadow: 0 6px 24px rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111813; --surface: #19221C; --fg: #E6ECE4; --muted: #9AA79D; --line: #2B372F;
+  --box: #86BE93; --box-soft: #213127; --ink: #C391E2; --ink-soft: #2D2136;
+  --bronze: #D09358; --silver: #AEB6BD; --gold: #E0B843;
+  --rose: #E58AAD; --garnet: #E0717F; --copper: #E5835E; --stone: #9FADA7;
+  --shadow: 0 6px 24px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.45 var(--f-body);
+  display: grid; grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+[hidden] { display: none !important; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--box); outline-offset: 2px; }
+
+/* ---------- Kopfleiste ---------- */
+.bar {
+  position: relative; z-index: 1001;
+  display: flex; align-items: center; gap: 16px;
+  padding-block: calc(10px + env(safe-area-inset-top, 0px)) 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.brand { min-width: 0; flex: 1; }
+.brand h1 {
+  margin: 0; font: 700 1.35rem/1.05 var(--f-display); letter-spacing: .01em;
+  text-wrap: balance;
+}
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: .82rem; }
+.tally { display: flex; align-items: baseline; gap: 2px; font-family: var(--f-display); font-variant-numeric: tabular-nums; }
+.tally b { font-size: 1.9rem; line-height: 1; color: var(--ink); font-weight: 700; }
+.tally span { color: var(--muted); font-weight: 600; font-size: 1.05rem; }
+.next { color: var(--muted); font-size: .8rem; text-align: right; white-space: nowrap; }
+.tallywrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.meter { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: transparent; }
+.meter i { display: block; height: 100%; width: 0; background: var(--ink); transition: width .4s ease; }
+
+/* ---------- Hauptbereich ---------- */
+.app { position: relative; display: grid; grid-template-columns: 1fr; min-height: 0; }
+#map { position: absolute; inset: 0; background: var(--bg); }
+@media (min-width: 900px) {
+  .app { grid-template-columns: 1fr 380px; }
+  #map { position: relative; inset: auto; height: 100%; }
+}
+
+/* Leaflet an Theme anpassen */
+.leaflet-container { font: inherit; }
+.leaflet-control-zoom a, .leaflet-control-layers, .leaflet-bar a { background: var(--surface) !important; color: var(--fg) !important; border-color: var(--line) !important; }
+.leaflet-control-layers { border-radius: var(--r) !important; box-shadow: var(--shadow) !important; border: 1px solid var(--line) !important; }
+.leaflet-control-layers-expanded { padding: 8px 12px !important; }
+.leaflet-bar { border: 1px solid var(--line) !important; box-shadow: var(--shadow) !important; border-radius: var(--r) !important; overflow: hidden; }
+.leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 85%, transparent) !important; color: var(--muted) !important; }
+.leaflet-control-attribution a { color: var(--box) !important; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface); color: var(--fg); box-shadow: var(--shadow); }
+.leaflet-popup-content-wrapper { border-radius: 14px; }
+.leaflet-popup-content { margin: 14px 16px; min-width: 220px; }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); top: 6px; right: 6px; }
+
+/* ---------- Marker ---------- */
+.pin { background: none; border: 0; }
+.pin-in {
+  position: relative; width: 100%; height: 100%; display: grid; place-items: center;
+}
+.pin-m {
+  position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; border-radius: 50%;
+  display: grid; place-items: center; background: #2B2F2C; color: #FFFFFF;
+  border: 1.5px solid #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,.35);
+}
+.pin-m svg { width: 10px; height: 10px; }
+.z-low .pin-m { display: none; }
+.f-steiger .pin:not(.steiger) { display: none; }
+.pin-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--pin-open-bg); color: var(--pin-open-fg);
+  border: 2.5px solid var(--pin-open-fg);
+  font: 700 12px/1 var(--f-display); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  transition: transform .15s ease, width .15s ease, height .15s ease;
+}
+.pin.done .pin-dot {
+  background: var(--pin-done-bg); color: var(--pin-done-fg); border-color: #FFFFFF;
+}
+.pin:hover .pin-dot { transform: scale(1.15); }
+.z-low .pin-dot { width: 13px; height: 13px; font-size: 0; border-width: 2px; }
+.z-low .pin.done .pin-dot { border-color: var(--pin-done-bg); }
+.f-open .pin.done, .f-done .pin:not(.done) { display: none; }
+.me-dot { width: 16px; height: 16px; border-radius: 50%; background: #2B7BE4; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(43,123,228,.25); }
+
+/* ---------- Popup ---------- */
+.pop { display: grid; gap: 8px; }
+.pop-top { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding-right: 18px; }
+.pop-m {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 5px;
+  border: 1px solid var(--line); color: var(--fg);
+  font: 700 .72rem/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase;
+}
+.pop-m svg { width: 12px; height: 12px; }
+.pop-nr {
+  font: 700 .78rem/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--box); background: var(--box-soft); padding: 4px 7px; border-radius: 5px;
+}
+.leaflet-popup-content .pop-src { margin: 0; color: var(--muted); font-size: .74rem; }
+.pop h3 { margin: 0; font: 700 1.25rem/1.15 var(--f-display); text-wrap: balance; }
+.leaflet-popup-content .pop-ort { margin: -4px 0 0; color: var(--muted); font-size: .88rem; }
+.stampbtn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 10px 12px; border-radius: 9px;
+  border: 2px dashed var(--ink); background: transparent; color: var(--ink);
+  font: 700 1rem/1 var(--f-display); letter-spacing: .03em;
+}
+.stampbtn[aria-pressed="true"] { border-style: solid; background: var(--ink); color: var(--surface); }
+.stampdate { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--muted); }
+.stampdate input { flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
+.pop-links { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .86rem; }
+.pop-links a { color: var(--box); font-weight: 600; text-decoration: none; }
+.pop-links a:hover { text-decoration: underline; }
+
+/* ---------- Steuerleiste unten ---------- */
+.dock {
+  position: absolute; z-index: 1000;
+  left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;
+  pointer-events: none;
+}
+.dock > * { pointer-events: auto; }
+.chipbtn, .seg {
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
+  border-radius: 999px; height: 42px;
+}
+.chipbtn { padding: 0 16px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.chipbtn svg { width: 18px; height: 18px; }
+.seg { display: inline-flex; padding: 3px; }
+.seg button {
+  border: 0; background: transparent; border-radius: 999px; padding: 0 13px; font-weight: 600; font-size: .9rem; color: var(--muted);
+}
+.seg button[aria-pressed="true"] { background: var(--box); color: var(--surface); }
+@media (min-width: 900px) { #listBtn { display: none; } }
+@media (max-width: 420px) {
+  .chipbtn { padding: 0 12px; }
+  .seg button { padding: 0 9px; font-size: .84rem; }
+}
+.locctl a { display: grid !important; place-items: center; width: 34px !important; height: 34px !important; }
+.locctl svg { width: 18px; height: 18px; }
+
+/* ---------- Liste / Panel ---------- */
+.panel {
+  background: var(--surface); display: flex; flex-direction: column; min-height: 0;
+  border-left: 1px solid var(--line);
+}
+@media (max-width: 899.98px) {
+  .panel {
+    position: absolute; z-index: 1002; left: 0; right: 0; bottom: 0; height: 72%;
+    border-left: 0; border-top: 1px solid var(--line);
+    border-radius: 18px 18px 0 0; box-shadow: 0 -8px 30px rgba(0,0,0,.2);
+    transform: translateY(105%); transition: transform .25s ease; visibility: hidden;
+  }
+  .panel.open { transform: none; visibility: visible; }
+}
+.ph {
+  padding-block: 14px 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 10px; border-bottom: 1px solid var(--line);
+}
+.ph-top { display: flex; align-items: center; gap: 10px; }
+.ph-top h2 { margin: 0; font: 700 1.1rem/1 var(--f-display); flex: 1; }
+.iconbtn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); display: grid; place-items: center; }
+@media (min-width: 900px) { #closePanel { display: none; } }
+.awards {
+  position: relative; display: flex; gap: 6px; overflow-x: auto; padding: 0 28px 2px 0; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+          mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+.awards::-webkit-scrollbar { display: none; }
+.award {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 9px 5px 6px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+  font-size: .78rem; font-weight: 600; color: var(--muted); white-space: nowrap;
+}
+.award:hover { border-color: var(--muted); }
+.award.next { border-color: var(--fg); color: var(--fg); }
+.award i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; }
+.award small { font-variant-numeric: tabular-nums; font-weight: 500; }
+.award.got { color: var(--fg); border-color: transparent; background: var(--bg); }
+.award.got i { background: var(--c); border-color: var(--c); }
+.srow { display: flex; gap: 8px; }
+.srow .search { flex: 1; min-width: 0; }
+.tbtn {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px;
+  border-radius: 9px; border: 1px solid var(--line); background: var(--bg); font-weight: 600; font-size: .88rem;
+}
+.tbtn svg { width: 15px; height: 15px; }
+.tbtn[aria-pressed="true"] { background: var(--fg); color: var(--surface); border-color: var(--fg); }
+.search { position: relative; }
+.search input {
+  width: 100%; padding: 9px 12px 9px 34px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg);
+}
+.search svg { position: absolute; left: 10px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--muted); }
+
+.list { list-style: none; margin: 0; padding: 4px 0; overflow-y: auto; flex: 1; min-height: 0; }
+.row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px max(12px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px));
+}
+.row:hover { background: var(--bg); }
+.row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 11px; border: 0; background: none; padding: 4px 0; text-align: left; }
+.badge {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  font: 700 .82rem/1 var(--f-display); font-variant-numeric: tabular-nums;
+  border: 2px solid var(--box); color: var(--box); background: var(--surface);
+}
+.row.done .badge { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.row-t { min-width: 0; display: grid; }
+.row-t b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-t small { color: var(--muted); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-t small em { font-style: normal; color: var(--bronze); }
+.row-t small .st { color: var(--fg); font-weight: 600; }
+.row-t small .mi { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
+.chk { flex: none; width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer; }
+.chk input { width: 20px; height: 20px; accent-color: var(--ink); cursor: pointer; }
+.empty { padding: 24px 16px; color: var(--muted); text-align: center; }
+
+.pf {
+  border-top: 1px solid var(--line);
+  padding-block: 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 10px; font-size: .82rem; color: var(--muted);
+}
+.pf details summary { cursor: pointer; font-weight: 600; color: var(--fg); }
+.tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tool {
+  border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 6px 10px; font-size: .82rem; font-weight: 600;
+}
+.status { margin: 0; }
+.status b { color: var(--fg); font-weight: 600; }
+.pf a { color: var(--box); }
+.hint { margin: 8px 0 0; }
+
+/* ---------- Meldung ---------- */
+.toast {
+  position: fixed; z-index: 2000; left: 50%; bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: .9rem; font-weight: 500;
+  width: max-content; max-width: min(460px, calc(100vw - 32px)); box-shadow: var(--shadow); transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 520px) {
+  .brand p { display: none; }
+  .brand h1 { font-size: 1.2rem; }
+  .next { font-size: .74rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <h1>Harzer Stempelkarte</h1>
+    <p>Alle 222 Stempelstellen der Harzer Wandernadel</p>
+  </div>
+  <div class="tallywrap">
+    <div class="tally" aria-label="Gestempelt"><b id="cnt">0</b><span>/ 222</span></div>
+    <div class="next" id="next">Noch 8 bis Bronze</div>
+  </div>
+  <div class="meter" aria-hidden="true"><i id="meterFill"></i></div>
+</header>
+
+<div class="app">
+  <div id="map" aria-label="Karte der Stempelstellen"></div>
+
+  <div class="dock">
+    <button class="chipbtn" id="listBtn" type="button" aria-controls="panel" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Liste
+    </button>
+    <div class="seg" role="group" aria-label="Anzeigen">
+      <button type="button" data-f="all" aria-pressed="true">Alle</button>
+      <button type="button" data-f="open" aria-pressed="false">Offen</button>
+      <button type="button" data-f="done" aria-pressed="false">Gestempelt</button>
+    </div>
+  </div>
+
+  <aside class="panel" id="panel" aria-label="Liste der Stempelstellen">
+    <div class="ph">
+      <div class="ph-top">
+        <h2>Stempelstellen</h2>
+        <button class="iconbtn" id="closePanel" type="button" aria-label="Liste schließen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="awards" id="awards"></div>
+      <div class="srow">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="Nummer, Name oder Ort" autocomplete="off" aria-label="Stempelstellen durchsuchen">
+        </label>
+        <button type="button" class="tbtn" id="steigerBtn" aria-pressed="false" title="Nur die 23 Pflichtstellen für den Harzer Steiger zeigen"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3.2 13.2L11 5.4M12.8 13.2L5 5.4" stroke-width="1.7"/><path d="M9.3 3.5l3.2 3.2M3.5 6.7l3.2-3.2" stroke-width="2.8"/></svg>Steiger</button>
+      </div>
+    </div>
+    <ul class="list" id="list"></ul>
+    <div class="pf">
+      <p class="status" id="status">Lade Positionen …</p>
+      <details>
+        <summary>Daten &amp; Sicherung</summary>
+        <div class="tools">
+          <button class="tool" id="refreshOsm" type="button">Positionen neu laden</button>
+          <button class="tool" id="gpxBtn" type="button">Offizielle GPX/ZIP laden</button>
+          <button class="tool" id="exportBtn" type="button">Fortschritt sichern</button>
+          <button class="tool" id="importBtn" type="button">Sicherung einlesen</button>
+        </div>
+        <p class="hint">Positionen kommen live aus OpenStreetMap. Genauer sind die offiziellen GPS-Daten: <a href="https://www.harzer-wandernadel.de/stempelstellen/gps-download/" target="_blank" rel="noopener">hier herunterladen</a> und die ZIP-Datei über „Offizielle GPX/ZIP laden“ einlesen. Dein Fortschritt liegt nur auf diesem Gerät; mit „Fortschritt sichern“ legst du eine Sicherungskopie an.</p>
+        <p class="hint">Tipp: Über „Zum Home-Bildschirm“ wird die Karte zur App. Schon angesehene Kartenbereiche funktionieren dann auch ohne Netz.</p>
+        <input type="file" id="gpxFile" accept=".gpx,.zip,.xml,application/gpx+xml,application/zip" hidden>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+      </details>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Daten & reine Hilfsfunktionen (ohne DOM) -->
+<script id="hwn-data">
+/* Offizielle Übersichtstabelle harzer-wandernadel.de, Stand 29.10.2026: [Nr, Name, Ort, Seiten-Slug] */
+const HWN_BASE = "https://www.harzer-wandernadel.de/stempelstellen/uebersichtskarte/";
+const HWN_TABLE = "https://www.harzer-wandernadel.de/stempelstellen/uebersichtstabelle/";
+const STAMPS = [
+[1,"Eckertalsperre – Staumauer","Ilsenburg (NPH)","stempelstelle-1-eckertalsperre-staumauer"],
+[2,"Scharfenstein – Rangerstation","Ilsenburg (NPH)","stempelstelle-2-scharfenstein-rangerstation"],
+[3,"Am Kruzifix","Ilsenburg (NPH)","stempelstelle-3-am-kruzifix"],
+[4,"Taubenklippe","Ilsenburg (NPH)","stempelstelle-4-taubenklippe"],
+[5,"Froschfelsen","Ilsenburg (NPH)","stempelstelle-5-froschfelsen"],
+[6,"Bremer Hütte (Obere Ilsefälle)","Ilsenburg (NPH)","stempelstelle-6-bremer-huette-obere-ilsefaelle"],
+[7,"Gasthaus Plessenburg","Ilsenburg (NPH)","stempelstelle-7-gasthaus-plessenburg"],
+[8,"Stempelsbuche","Ilsenburg (NPH)","stempelstelle-8-stempelsbuche"],
+[9,"Brockenhaus","Schierke / Brocken (NPH)","stempelstelle-9-brockenhaus"],
+[10,"Große Zeterklippe","Schierke (NPH)","stempelstelle-10-grosse-zeterklippe"],
+[11,"Eckerloch","Schierke (NPH)","stempelstelle-11-eckerloch"],
+[12,"Achtermannshöhe","Braunlage (NPH)","stempelstelle-12-achtermannshoehe"],
+[13,"Ahrensklint","Schierke (NPH)","stempelstelle-13-ahrensklint"],
+[14,"Schnarcherklippe","Schierke","stempelstelle-14-schnarcherklippe-schutzhuette"],
+[15,"Leistenklippe","Schierke (NPH)","stempelstelle-15-leistenklippe"],
+[16,"Ferdinandsstein","Wernigerode / Ilsenburg (NPH)","stempelstelle-16-ferdinandsstein"],
+[17,"Trudenstein","Schierke (NPH)","stempelstelle-17-trudenstein"],
+[18,"Grenzweg am Kaffeehorst","Elend","stempelstelle-18-grenzweg-am-kaffeehorst"],
+[19,"Skidenkmal (Nähe Eckerstausee)","Torfhaus (NPH)","stempelstelle-19-skidenkmal-naehe-eckerstausee"],
+[20,"Aussichtskanzel am Barenberg","Elend","stempelstelle-20-barenberg-aussichtspunkt"],
+[21,"Helenenruh Elend","Elend","stempelstelle-21-helenenruh"],
+[22,"Gelber Brink","Schierke / Ilsenburg (NPH)","stempelstelle-22-gelber-brink"],
+[23,"Molkenhausstern","Wernigerode (NPH)","stempelstelle-23-molkenhausstern"],
+[24,"Wolfsklippe","Wernigerode","stempelstelle-24-wolfsklippe"],
+[25,"Oberförster-Koch-Denkmal","Wernigerode","stempelstelle-25-oberfoerster-koch-denkmal"],
+[26,"Mönchsbuche","Wernigerode","stempelstelle-26-moenchsbuche"],
+[27,"Ottofelsen","Wernigerode","stempelstelle-27-ottofelsen"],
+[28,"Gasthaus Steinerne Renne","Wernigerode","stempelstelle-28-gasthaus-steinerne-renne"],
+[29,"Elversstein","Wernigerode","stempelstelle-29-elversstein"],
+[30,"Ilsestein","Ilsenburg (NPH)","stempelstelle-30-ilsestein"],
+[31,"Agnesberg","Wernigerode","stempelstelle-31-agnesberg"],
+[32,"Gasthaus Christianental","Wernigerode","stempelstelle-32-gasthaus-christianental"],
+[33,"Stapenberg","Benzingerode","stempelstelle-33-stapenberg"],
+[34,"Scharfenstein","Wernigerode","stempelstelle-34-scharfenstein"],
+[35,"Gasthaus Armeleuteberg","Wernigerode","stempelstelle-35-gasthaus-armeleuteberg"],
+[36,"Peterstein","Wernigerode","stempelstelle-36-peterstein"],
+[37,"Büchenberg","Elbingerode","stempelstelle-37-buechenberg"],
+[38,"Galgenberg","Elbingerode","stempelstelle-38-galgenberg"],
+[39,"Tagebau Felswerke","Elbingerode","stempelstelle-39-tagebau-felswerke"],
+[40,"Königshütter Wasserfall","Königshütte","stempelstelle-40-koenigshuetter-wasserfall"],
+[41,"Ruine Königsburg","Königshütte","stempelstelle-41-ruine-koenigsburg"],
+[42,"Trogfurther Brücke","Königshütte","stempelstelle-42-trogfurther-bruecke"],
+[43,"Wasserscheide Weser-Elbe „Hohe Tür“","Steina","stempelstelle-43-wasserscheide-weser-elbe-hohe-tuer"],
+[44,"Kapitelsberg","Sorge / Tanne","stempelstelle-44-kapitelsberg"],
+[45,"Dicke Tannen","Hohegeiß","stempelstelle-45-dicke-tannen"],
+[46,"Grenzmuseum am Ring der Erinnerung","Sorge / Tanne","stempelstelle-46-grenzmuseum-am-ring-der-erinnerung"],
+[47,"Oberharzblick am Buchenberg","Benneckenstein","stempelstelle-47-oberharzblick-am-buchberg"],
+[48,"Stierbergsteich","Region Benneckenstein/Rothesütte","stempelstelle-48-stierbergsteich"],
+[49,"Grüntal","Benneckenstein","stempelstelle-49-gruental"],
+[50,"Walzenhütte","Benneckenstein","stempelstelle-50-walzenhuette"],
+[51,"Carlsturm","Trautenstein","stempelstelle-51-carlsturm"],
+[52,"Trageburg am Hexenstieg","Trautenstein","stempelstelle-52-trageburg-am-hexenstieg"],
+[53,"Hassel-Vorsperre","Hasselfelde","stempelstelle-53-hassel-vorsperre"],
+[54,"Rotestein","Hasselfelde","stempelstelle-54-rotestein"],
+[55,"Wüstung Selkenfelde/Kirche","Stiege","stempelstelle-55-wuestung-selkefeldekirche"],
+[56,"Rappbodeblick Trautenstein","Hasselfelde","stempelstelle-56-rappbodeblick-trautenstein"],
+[57,"Echowiese Allrode","Allrode","stempelstelle-57-echoblick-allrode"],
+[58,"Pferdchen","Zorge","stempelstelle-58-pferdchen"],
+[59,"Klostergrund Michaelstein","Blankenburg","stempelstelle-59-klostergrund-michaelstein"],
+[60,"Stemberghaus-Köhlerei","Hasselfelde / Bodetal","stempelstelle-60-stemberghaus-koehlerei"],
+[61,"Harzer Grauwacke Rieder","Ballenstedt","stempelstelle-61-harzer-grauwacke-rieder"],
+[62,"Talsperre Wendefurth (Talsperrenblick)","Bodetal","stempelstelle-62-talsperre-wendefurth-talsperrenblick"],
+[63,"Schöneburg (Aussichtspunkt)","Bodetal","stempelstelle-63-schoeneburg-aussichtspunkt"],
+[64,"Böser Kleef (Aussichtspunkt)","Bodetal","stempelstelle-64-boeser-kleef-aussichtspunkt"],
+[65,"Gasthaus Todtenrode","Bodetal","stempelstelle-65-gasthaus-todtenrode"],
+[66,"Wilhelmsblick (Aussichtspunkt)","Bodetal","stempelstelle-66-wilhelmsblick-aussichtspunkt"],
+[67,"Weißer Hirsch (Aussichtspunkt)","Treseburg","stempelstelle-68-weisser-hirsch-aussichtspunkt"],
+[68,"„Pfeil“-Denkmal","Thale","stempelstelle-68-pfeil-denkmal"],
+[69,"Sonnenklippe (Bodetal)","Thale","stempelstelle-69-sonnenklippe-bodetal"],
+[70,"Prinzensicht (Aussichtspunkt)","Thale","stempelstelle-70-prinzensicht-aussichtsturm"],
+[71,"Rosstrappe (Abzweig Schurre)","Thale","stempelstelle-71-rosstrappe-abzweig-schurre"],
+[72,"La Viershöhe","Thale","stempelstelle-72-la-viershoehe"],
+[73,"Glockenstein","Thale","stempelstelle-73-glockenstein"],
+[74,"Hamburger Wappen (Teufelsmauer)","Timmenrode","stempelstelle-74-hamburger-wappen-teufelsmauer"],
+[75,"Hahnenkleeklippen","St. Andreasberg (NPH)","stempelstelle-75-hahnenkleeklippen"],
+[76,"Großvaterfelsen","Blankenburg","stempelstelle-76-grossvaterfelsen"],
+[77,"Ruine Luisenburg","Blankenburg","stempelstelle-77-ruine-luisenburg"],
+[78,"Barocke Gärten","Blankenburg","stempelstelle-78-barocke-gaerten"],
+[79,"Otto-Ebert-Brücke (am Herzogsweg)","Blankenburg","stempelstelle-79-otto-ebert-bruecke-am-herzogsweg"],
+[80,"Burgruine Regenstein","Blankenburg","stempelstelle-80-burgruine-regenstein"],
+[81,"Sandhöhlen im Heers","Blankenburg","stempelstelle-81-sandhoehlen-im-heers"],
+[82,"Regenstein-Mühle","Blankenburg","stempelstelle-82-regenstein-muehle"],
+[83,"Austbergturm","Benzingerode","stempelstelle-83-austbergturm"],
+[84,"Altenburg (bei Heimburg)","Heimburg","stempelstelle-84-altenburg-bei-heimburg"],
+[85,"Wasserkunst Thumkuhlental","Wernigerode","stempelstelle-85-wasserkunst-thumkuhlental"],
+[86,"Bisongehege","Stangerode","stempelstelle-86-bisongehege"],
+[87,"Volkmarskeller","Blankenburg","stempelstelle-87-volkmarskeller"],
+[88,"Aussichtspavillon Hoher Kleef","Rübeland","stempelstelle-88-aussichtspavillon-hoher-kleef"],
+[89,"Schornsteinberg","Rübeland","stempelstelle-89-schornsteinberg"],
+[90,"Roter Schuss","Ellrich","stempelstelle-90-roter-schuss"],
+[91,"Weltkulturerbe Rammelsberg","Goslar","stempelstelle-91-weltkulturerbe-rammelsberg"],
+[92,"Poppenberg mit Aussichtsturm","Ilfeld","stempelstelle-92-poppenberg-mit-aussichtsturm"],
+[93,"Dreitälerblick","Ilfeld","stempelstelle-93-dreitaelerblick"],
+[94,"Dreiherrenstein (am Brandhai am 48A)","Neustadt / Breitenstein","stempelstelle-94-dreiherrenstein-am-brandhai-am-48a"],
+[95,"Ilfelder Wetterfahne","Ilfeld","stempelstelle-95-ilfelder-wetterfahne"],
+[96,"Ehemalige Steinmühle","Ilfeld","stempelstelle-96-ehemalige-steinmuehle"],
+[97,"Ziegenalm Sophienhof","Sophienhof / Ilfeld","stempelstelle-97-ziegenalm-sophienhof"],
+[98,"Ruine Hohnstein","Neustadt (Harz)","stempelstelle-98-ruine-hohnstein"],
+[99,"Harzer Holzdampflok","Nordhausen","stempelstelle-99-harzer-holzdampflok"],
+[100,"Ebersburg","Nordhausen","stempelstelle-100-ebersburg"],
+[101,"Einhornhöhle","Scharzfeld","stempelstelle-101-einhornhoehle"],
+[102,"Lageswarte","Hahausen","stempelstelle-102-lageswarte"],
+[103,"Luchsstein","Lautenthal","stempelstelle-103-luchsstein"],
+[104,"Tränkebachhütte","Seesen","stempelstelle-104-traenkebachhuette"],
+[105,"Prinzenlaube","Wildemann","stempelstelle-105-prinzenlaube"],
+[106,"Schöne Aussicht Bielstein","Lautenthal","stempelstelle-106-schoene-aussicht-bielstein"],
+[107,"Maaßener Gaipel","Lautenthal","stempelstelle-107-maassener-gaipel"],
+[108,"Sudmerberger Warte","Goslar","stempelstelle-108-sudmerberger-warte"],
+[109,"Heimberg","Wolfshagen","stempelstelle-109-heimberg"],
+[110,"Granestausee","Astfeld","stempelstelle-110-granestausee"],
+[111,"Steinbergturm/Steinbergalm","Goslar","stempelstelle-111-steinbergturm-steinbergalm"],
+[112,"Liebesbank","Hahnenklee – Bockswiese","steinbergturm-112-liebesbank"],
+[113,"Grumbacher Teich","Hahnenklee – Bockswiese","stempelstelle-113-grumbacher-teich"],
+[114,"Ramseck","Goslar","stempelstelle-114-ramseck"],
+[115,"Bismarckturm","Bad Lauterberg","stempelstelle-115-bismarckturm"],
+[116,"Verlobungsinsel in der Oker","Oker","stempelstelle-116-verlobungsinsel-in-der-oker"],
+[117,"Treppenstein","Oker","stempelstelle-117-treppenstein"],
+[118,"Kästehaus","Oker","stempelstelle-118-kaestehaus"],
+[119,"Hallesche Hütte (an den Ahrendsberger Klippen)","Schulenberg","stempelstelle-119-hallesche-huette-an-den-ahrendsberger-klippen"],
+[120,"Elfenstein","Bad Harzburg","stempelstelle-120-elfenstein"],
+[121,"„Aussichtsreich“ Burgberg","Bad Harzburg","stempelstelle-121-aussichtsreich-burgberg"],
+[122,"Kreuz des deutschen Ostens","Bad Harzburg","stempelstelle-122-kreuz-des-deutschen-ostens"],
+[123,"Gaststätte Rinderstall","St. Andreasberg","stempelstelle-123-gaststaette-rinderstall"],
+[124,"Köte am Heidenstieg","Schulenberg","stempelstelle-124-koete-am-heidenstieg"],
+[125,"Schalker Turm","Clausthal-Zellerfeld","stempelstelle-125-schalker-turm"],
+[126,"Lochstein, Oberer Schalker Graben","Clausthal-Zellerfeld","stempelstelle-126-lochstein-oberer-schalker-graben"],
+[127,"Weppner Hütte, Jägersbleeker Teich","Clausthal-Zellerfeld","stempelstelle-127-weppner-huette-jaegersbleeker-teich"],
+[128,"Huttaler Widerwaage","Clausthal-Zellerfeld","stempelstelle-128-huttaler-widerwaage"],
+[129,"Hütte im WeltWald Harz","Bad Grund","stempelstelle-129-huette-im-weltwald-harz"],
+[130,"Iberger Albertturm","Bad Grund","stempelstelle-130-iberger-albertturm"],
+[131,"Kaysereiche (Schutzhütte)","Bad Grund","stempelstelle-131-kaysereiche-schutzhuette"],
+[132,"Schwarzenberg, Köte Brockenblick","Altenau","stempelstelle-132-schwarzenberg-koete-brockenblick"],
+[133,"Förster-Ludewig-Platz","Altenau","stempelstelle-133-foerster-ludewig-platz"],
+[134,"Gustav-Baumann-Weg (NPH)","Altenau","stempelstelle-134-gustav-baumann-weg"],
+[135,"Wolfswarte","Altenau","stempelstelle-135-wolfswarte"],
+[136,"Eckersprung","Torfhaus (NPH)","stempelstelle-136-eckersprung"],
+[137,"Bärenbrucher Teich","Buntenbock","stempelstelle-137-baerenbrucher-teich"],
+[138,"Braunseck","Buntenbock","stempelstelle-138-braunseck"],
+[139,"Kuckholzklippe","Lerbach","stempelstelle-139-kuckholzklippe"],
+[140,"Eselsplatz","Lerbach","stempelstelle-140-eselsplatz"],
+[141,"Oberer Hahnebalzer Teich","Osterode","stempelstelle-141-oberer-hahnebalzer-teich"],
+[142,"Mandolinenhütte","Lautenthal","stempelstelle-142-mandolinenhuette"],
+[143,"Köte Schindelkopf","Osterode","stempelstelle-143-koete-schindelkopf"],
+[144,"Hanskühnenburg","Osterode","stempelstelle-144-hanskuehnenburg"],
+[145,"Schmidts-Denkmal","Riefensbeek","stempelstelle-145-schmidts-denkmal"],
+[146,"Großes Wehr","Riefensbeek","stempelstelle-146-grosses-wehr"],
+[147,"Eleonorenblick","Riefensbeek","stempelstelle-147-eleonorenblick"],
+[148,"Naturmythenpfad (NPH)","Braunlage","stempelstelle-148-naturmythenpfad-nph"],
+[149,"Herzweg Mühlenberg","Altenau",null],
+[150,"Großer Knollen","Herzberg","stempelstelle-150-grosser-knollen"],
+[151,"Ruine Scharzfels","Barbis","stempelstelle-151-ruine-scharzfels"],
+[152,"Knollenkreuz","Barbis","stempelstelle-152-knollenkreuz"],
+[153,"Goedeckenplatz","St. Andreasberg","stempelstelle-153-goedeckenplatz-2"],
+[154,"Dreibrodestein","St. Andreasberg","stempelstelle-154-dreibrodestein"],
+[155,"Rehberger Grabenhaus","St. Andreasberg","stempelstelle-155-rehberger-grabenhaus"],
+[156,"Wurmberg-Baude","Braunlage","stempelstelle-156-wurmberg-baude"],
+[157,"Kapellenfleck","Braunlage","stempelstelle-157-kappellenfleck"],
+[158,"Hassenstein","Bad Lauterberg","stempelstelle-158-hassenstein"],
+[159,"Stöberhai","Wieda","stempelstelle-159-stoeberhai"],
+[160,"Helenenruh","Zorge","stempelstelle-160-helenenruh-zorge"],
+[161,"Stephanshütte","Wieda","stempelstelle-161-stephanshuette"],
+[162,"Kreuztalsklippe","Wieda","stempelstelle-162-kreuztalsklippe"],
+[163,"Gipfelblick am Kaiserweg","Wieda","stempelstelle-163-gipfelblick-am-kaiserweg"],
+[164,"Stiefmutter","Zorge","stempelstelle-164-stiefmutter"],
+[165,"Wendel-Eiche","Ellrich","stempelstelle-165-wendel-eiche"],
+[166,"Sachsensteinhütte","Neuhof","stempelstelle-166-sachsensteinhuette"],
+[167,"Hexentanzplatz (= Ellricher Blick)","Walkenried","stempelstelle-167-hexentanzplatz-ellricher-blick"],
+[168,"Dreieckiger Pfahl","Oderbrück","stempelstelle-168-dreieckiger-pfahl"],
+[169,"Molkenhaus","Bad Harzburg","stempelstelle-169-molkenhaus"],
+[170,"Rabenklippe","Bad Harzburg / Eckertal","stempelstelle-170-rabenklippe"],
+[171,"Altarklippe (oberhalb d. Granestausees)","Hahnenklee","stempelstelle-171-altarklippen-oberhalb-d-granestausees"],
+[172,"Katzsohlteich","Güntersberge","stempelstelle-172-katzsohlteich"],
+[173,"Waldwiese Hirschbüchenkopf","Güntersberge","stempelstelle-173-waldwiese-hirschbuechenkopf"],
+[174,"Hohnehof","Drei-Annen-Hohne (NPH)","stempelstelle-174-hohnehof"],
+[175,"Schaubergwerk Glasebach","Straßberg","stempelstelle-175-schaubergwerk-glasebach"],
+[176,"Uhlenköpfe Hänichen","Harzgerode","stempelstelle-176-uhlenkoepfe-haenichen"],
+[177,"Verlobungsurne Alexisbad","Harzgerode","stempelstelle-177-verlobungsurne-alexisbad"],
+[178,"Hirschgrund (am Gasthaus Königsruhe)","Thale","stempelstelle-178-hirschgrund-am-gasthaus-koenigskrug"],
+[179,"IV. Friedrichshammer","Harzgerode","stempelstelle-179-iv-friedrichshammer"],
+[180,"Alter Kohlenschacht","Ballenstedt","stempelstelle-180-alter-kohlenschacht"],
+[181,"Forstmeister Tannen","Ballenstedt","stempelstelle-181-forstmeister-tannen"],
+[182,"Schirm","Ballenstedt","stempelstelle-182-schirm"],
+[183,"Försterblick Gernrode","Gernrode","stempelstelle-183-foersterblick-gernrode"],
+[184,"Bärendenkmal","Gernrode","stempelstelle-184-baerendenkmal"],
+[185,"Preußenturm","Bad Suderode","stempelstelle-185-preussenturm"],
+[186,"Anhaltinischer Salstein","Bad Suderode","stempelstelle-186-anhaltinischer-salstein"],
+[187,"Lauenburg","Stecklenberg","stempelstelle-187-lauenburg"],
+[188,"Teufelsmauer Weddersleben","Thale","stempelstelle-188-teufelsmauer-weddersleben"],
+[189,"Große Teufelsmühle","Friedrichsbrunn","stempelstelle-189-grosse-teufelsmuehle"],
+[190,"Bergrat-Müller-Teich","Friedrichsbrunn","stempelstelle-190-bergrat-mueller-teich"],
+[191,"Laubtalblick","Friedrichsbrunn","stempelstelle-191-laubtalblick"],
+[192,"Historischer Gipsbrennofen","Neuhof","stempelstelle-192-historischer-gipsbrennofen"],
+[193,"Stahlquelle","Neudorf","stempelstelle-193-stahlquelle"],
+[194,"Hellergrund","Neudorf","stempelstelle-194-hellergrund"],
+[195,"Köthener Hütte","Alexisbad","stempelstelle-195-koethener-huette"],
+[196,"Bremer Teich","Gernrode","stempelstelle-196-bremer-teich"],
+[197,"Burgruine Anhalt","Mägdesprung","stempelstelle-197-burgruine-anhalt"],
+[198,"Glockensteine","Nordhausen","stempelstelle-198-glockensteine"],
+[199,"Bismarckturm","Opperode","stempelstelle-199-bismarckturm"],
+[200,"Burg Falkenstein","Pansfelde (Falkenstein)","stempelstelle-200-burg-falkenstein"],
+[201,"Konradsburg","Ermsleben (Falkenstein)","stempelstelle-201-konradsburg"],
+[202,"Landschaftspark Degenershausen","Wieserode (Falkenstein)","stempelstelle-202-landschaftspark-degenershausen"],
+[203,"Schutzhütte am Mettenberg","Meisdorf (Falkenstein)","stempelstelle-203-schutzhuette-am-mettenberg"],
+[204,"Selkesicht an der Ackeburg","Meisdorf (Falkenstein)","stempelstelle-204-selkesicht-an-der-ackeburg"],
+[205,"Rastplatz unterhalb des Clusberges","Pansfelde (Falkenstein)","stempelstelle-205-rastplatz-unterhalb-des-clusberges"],
+[206,"Hahnestein","Hohegeiß","stempelstelle-206-hahnestein"],
+[207,"Mausoleum","Meisdorf (Falkenstein)","stempelstelle-207-mausoleum"],
+[208,"Burgruine Grillenburg","Grillenberg","stempelstelle-208-burgruine-grillenburg"],
+[209,"Moltkewarte (Aussichtsturm)","Sangerhausen/Lengefeld","stempelstelle-209-moltkewarte-aussichtsturm"],
+[210,"Schöne Aussicht Hainrode","Hainrode","stempelstelle-210-schoene-aussicht-hainrode"],
+[211,"Kiliansteiche","Straßberg","stempelstelle-211-kiliansteiche"],
+[212,"An der Queste","Questenberg","stempelstelle-212-an-der-queste"],
+[213,"Bauerngraben","Breitungen","stempelstelle-213-bauerngraben"],
+[214,"Reesbergdoline","Region Uftrungen/Rottleberode","stempelstelle-214-reesbergdoline"],
+[215,"Josephshöhe (Auerberg)","Stolberg (Harz)","stempelstelle-215-josephshoehe-auerberg"],
+[216,"Lutherbuche","Stolberg (Harz)","stempelstelle-216-lutherbuche"],
+[217,"Sonnenkappe Oderteich (NPH)","St. Andreasberg","stempelstelle-217-sonnenkappe-oderteich-nph"],
+[218,"Neustädter Talsperre","Neustadt","stempelstelle-218-neustaedter-talsperre"],
+[219,"Wippertalsperre","Wippra","stempelstelle-219-wippertalsperre"],
+[220,"Schutzhütte Phillippsgruß","Bad Sachsa","stempelstelle-220-schutzhuette-phillippsgruss"],
+[221,"Jungfernklippe","Torfhaus-Altenau","stempelstelle-221-jungfernklippe"],
+[222,"Bergbaulehrpfad Wettelrode","Wettelrode","stempelstelle-222-bergbaulehrpfad-wettelrode"]
+];
+
+/* Pflicht-Stempelstellen „Harzer Steiger“ (Bergbaubezug, im Begleitheft mit Schlägel und Eisen markiert).
+   Quellen: harzer-wander-gui.de/harzer-wandernadel/steiger, family-fly.de (Stand 03/2024) – übereinstimmend */
+const STEIGER = new Set([37,39,60,61,85,91,107,113,126,127,128,133,137,146,155,172,175,179,190,193,194,217,222]);
+const MINER = '<svg class="mi" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3.2 13.2L11 5.4M12.8 13.2L5 5.4" stroke-width="1.7"/><path d="M9.3 3.5l3.2 3.2M3.5 6.7l3.2-3.2" stroke-width="2.8"/></svg>';
+
+/* Leistungsabzeichen laut harzer-wandernadel.de/die-wandernadel/leistungsabzeichen (Stand 30.10.2026) */
+const AWARDS = [
+  { n: 8,   name: "Bronze",           full: "Harzer Wandernadel in Bronze",            color: "var(--bronze)" },
+  { n: 11,  name: "Prinzessin/Prinz", full: "Harzer Wanderprinzessin / WanderPrinz",   color: "var(--rose)" },
+  { n: 16,  name: "Silber",           full: "Harzer Wandernadel in Silber",            color: "var(--silver)" },
+  { n: 24,  name: "Gold",             full: "Harzer Wandernadel in Gold",              color: "var(--gold)" },
+  { n: 50,  name: "Wanderkönig",      full: "Der Harzer Wanderkönig",                  color: "var(--garnet)" },
+  { n: 100, name: "Kaiserrucksack",   full: "Der Harzer Kaiserrucksack",               color: "var(--silver)" },
+  { n: 111, name: "Steiger",          full: "Der Harzer Steiger",                      color: "var(--stone)", req: STEIGER,
+    note: "davon alle 23 Bergbau-Pflichtstempel (auf der Karte mit Schlägel und Eisen markiert)" },
+  { n: 150, name: "Kaiserschuh",      full: "Der Harzer Kaiserschuh",                  color: "var(--copper)" },
+  { n: 222, name: "Wanderkaiser",     full: "Der Harzer Wanderkaiser",                 color: "var(--ink)" }
+];
+
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter"
+];
+/* Harz mit Vorland (S, W, N, O) */
+const OVERPASS_QUERY = '[out:json][timeout:90];nwr["ref"~"HWN",i](51.25,9.85,52.15,11.85);out center tags;';
+
+function validNr(n) { return Number.isInteger(n) && n >= 1 && n <= 222; }
+
+/* OSM-Elemente -> {nr: [lat, lon, typ, id]}; bevorzugt Knoten mit checkpoint-Tag */
+function parseOsm(elements) {
+  const best = {};
+  for (const el of elements || []) {
+    const lat = el.lat ?? el.center?.lat, lon = el.lon ?? el.center?.lon;
+    if (typeof lat !== "number" || typeof lon !== "number") continue;
+    const tags = el.tags || {};
+    for (const part of String(tags.ref || "").split(";")) {
+      const m = part.match(/^\s*HWN\s*[-_.]?\s*0*(\d{1,3})\s*$/i);
+      if (!m) continue;
+      const nr = +m[1];
+      if (!validNr(nr)) continue;
+      const score = (tags.checkpoint ? 4 : 0) + (el.type === "node" ? 2 : 0) + (tags.disused || tags["disused:checkpoint"] ? -6 : 0);
+      if (!best[nr] || score > best[nr].score) {
+        best[nr] = { score, v: [Math.round(lat * 1e6) / 1e6, Math.round(lon * 1e6) / 1e6, el.type, el.id] };
+      }
+    }
+  }
+  const out = {};
+  for (const k in best) out[k] = best[k].v;
+  return out;
+}
+
+/* Stempelnummer aus Wegpunkt-Text (GPX) lesen */
+function extractNr(s) {
+  if (!s) return null;
+  s = String(s);
+  const pats = [
+    /HWN\s*[-_#.]?\s*0*(\d{1,3})(?!\d)/i,
+    /Stempelstelle\s*(?:Nr\.?\s*)?0*(\d{1,3})(?!\d)/i,
+    /\bNr\.?\s*0*(\d{1,3})(?!\d)/i,
+    /^\s*0*(\d{1,3})(?!\d)/
+  ];
+  for (const p of pats) {
+    const m = s.match(p);
+    if (m && validNr(+m[1])) return +m[1];
+  }
+  return null;
+}
+
+/* GPX-Text -> [{nr, lat, lon}] ; parseXml wird übergeben (DOMParser im Browser) */
+function parseGpxWith(parseXml, text, fileName) {
+  const doc = parseXml(text);
+  const wpts = Array.from(doc.getElementsByTagName("wpt"));
+  const out = [];
+  const txt = (el, tag) => { const t = el.getElementsByTagName(tag)[0]; return t ? t.textContent : ""; };
+  for (const w of wpts) {
+    const lat = parseFloat(w.getAttribute("lat")), lon = parseFloat(w.getAttribute("lon"));
+    if (!isFinite(lat) || !isFinite(lon)) continue;
+    let nr = extractNr(txt(w, "name")) ?? extractNr(txt(w, "cmt")) ?? extractNr(txt(w, "desc"));
+    if (nr == null && wpts.length === 1) nr = extractNr(String(fileName || "").replace(/^.*\//, ""));
+    if (nr != null) out.push({ nr, lat, lon });
+  }
+  return out;
+}
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+(() => {
+  /* ---------- Speicher ---------- */
+  const LS = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  };
+  const K = { done: "hwn.collected.v1", osm: "hwn.coords.osm.v1", gpx: "hwn.coords.gpx.v1", view: "hwn.view.v1" };
+
+  let collected = LS.get(K.done, {});          // { nr: "YYYY-MM-DD" }
+  let osm = LS.get(K.osm, null);               // { fetched, pts }
+  let gpx = LS.get(K.gpx, null);               // { loaded, file, pts }
+  let filter = "all";
+  let steigerOnly = false;
+
+  const $ = (s) => document.querySelector(s);
+  const byNr = new Map(STAMPS.map((s) => [s[0], { nr: s[0], name: s[1], ort: s[2], slug: s[3] }]));
+  const todayIso = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+  const fmtDate = (iso) => { if (!iso) return ""; const [y, m, d] = iso.slice(0, 10).split("-"); return `${d}.${m}.${y}`; };
+  const pad = (n) => String(n).padStart(3, "0");
+  const linkOf = (s) => s.slug ? HWN_BASE + s.slug + "/" : HWN_TABLE;
+
+  function posOf(nr) {
+    if (gpx?.pts?.[nr]) return { lat: gpx.pts[nr][0], lon: gpx.pts[nr][1], src: "gpx" };
+    if (osm?.pts?.[nr]) return { lat: osm.pts[nr][0], lon: osm.pts[nr][1], src: "osm", osmType: osm.pts[nr][2], osmId: osm.pts[nr][3] };
+    return null;
+  }
+
+  let toastT;
+  function toast(msg) {
+    const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), Math.max(3200, msg.length * 55));
+  }
+
+  /* ---------- Karte ---------- */
+  const mapEl = $("#map");
+  const saved = LS.get(K.view, null);
+  const map = L.map(mapEl, { zoomControl: false, attributionControl: true })
+    .setView(saved ? [saved.lat, saved.lng] : [51.74, 10.72], saved ? saved.z : 10);
+  L.control.zoom({ position: "topright", zoomInTitle: "Hineinzoomen", zoomOutTitle: "Herauszoomen" }).addTo(map);
+
+  const base = {
+    "OpenStreetMap": L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende'
+    }),
+    "Topografisch": L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+      maxZoom: 17, subdomains: "abc",
+      attribution: 'Karte: © <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA), Daten: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+    })
+  };
+  base["OpenStreetMap"].addTo(map);
+  L.control.layers(base, null, { position: "topright" }).addTo(map);
+  map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+
+  const setZoomClass = () => mapEl.classList.toggle("z-low", map.getZoom() < 12);
+  map.on("zoomend", setZoomClass); setZoomClass();
+  map.on("moveend", () => { const c = map.getCenter(); LS.set(K.view, { lat: c.lat, lng: c.lng, z: map.getZoom() }); });
+
+  const markers = new Map();
+  const iconFor = (nr) => L.divIcon({
+    className: "pin" + (collected[nr] ? " done" : "") + (STEIGER.has(nr) ? " steiger" : ""),
+    html: `<div class="pin-in"><div class="pin-dot">${nr}</div>${STEIGER.has(nr) ? `<span class="pin-m">${MINER}</span>` : ""}</div>`,
+    iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14]
+  });
+
+  function renderMarkers() {
+    for (const s of byNr.values()) {
+      const p = posOf(s.nr);
+      let m = markers.get(s.nr);
+      if (!p) { if (m) { m.remove(); markers.delete(s.nr); } continue; }
+      if (!m) {
+        m = L.marker([p.lat, p.lon], { icon: iconFor(s.nr), title: `Nr. ${s.nr} · ${s.name}${STEIGER.has(s.nr) ? " · Steiger-Pflicht" : ""}`, riseOnHover: true, keyboard: true });
+        m.bindPopup(() => popupFor(s.nr), { maxWidth: 300, autoPanPadding: [20, 80] });
+        m.addTo(map); markers.set(s.nr, m);
+      } else {
+        m.setLatLng([p.lat, p.lon]);
+      }
+    }
+  }
+  const refreshMarker = (nr) => { const m = markers.get(nr); if (m) m.setIcon(iconFor(nr)); };
+
+  /* ---------- Popup ---------- */
+  function popupFor(nr) {
+    const s = byNr.get(nr), p = posOf(nr), done = !!collected[nr];
+    const el = document.createElement("div");
+    el.className = "pop";
+    const srcTxt = p?.src === "gpx" ? "Position: offizielle GPS-Daten" : "Position: OpenStreetMap";
+    const nav = p ? `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}&travelmode=walking` : "";
+    const osmLink = p ? (p.osmType ? `https://www.openstreetmap.org/${p.osmType}/${p.osmId}` : `https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=17/${p.lat}/${p.lon}`) : "";
+    el.innerHTML = `
+      <div class="pop-top"><span class="pop-nr">Stempel ${pad(nr)}</span>${STEIGER.has(nr) ? `<span class="pop-m" title="Pflichtstempel für den Harzer Steiger">${MINER}Steiger-Pflicht</span>` : ""}</div>
+      <h3></h3>
+      <p class="pop-ort"></p>
+      <button type="button" class="stampbtn" aria-pressed="${done}"></button>
+      <label class="stampdate" ${done ? "" : "hidden"}>Am <input type="date" id="date-${nr}" max="${todayIso()}"></label>
+      <div class="pop-links">
+        <a target="_blank" rel="noopener">Infos zur Stempelstelle</a>
+        ${p ? `<a href="${nav}" target="_blank" rel="noopener">Route</a><a href="${osmLink}" target="_blank" rel="noopener">OSM</a>` : ""}
+      </div>
+      <p class="pop-src"></p>`;
+    el.querySelector(".pop-src").textContent = p ? srcTxt : "";
+    el.querySelector("h3").textContent = s.name;
+    el.querySelector(".pop-ort").textContent = s.ort;
+    el.querySelector(".pop-links a").href = linkOf(s);
+    const btn = el.querySelector(".stampbtn"), dateWrap = el.querySelector(".stampdate"), date = el.querySelector("input");
+    const paint = () => {
+      const d = !!collected[nr];
+      btn.setAttribute("aria-pressed", d);
+      btn.innerHTML = d
+        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Gestempelt'
+        : "Als gestempelt markieren";
+      dateWrap.hidden = !d;
+      date.value = collected[nr] || "";
+    };
+    btn.addEventListener("click", () => { setDone(nr, !collected[nr]); paint(); });
+    date.addEventListener("change", () => { if (date.value) { collected[nr] = date.value; save(); updateRow(nr); } });
+    paint();
+    return el;
+  }
+
+  /* ---------- Status setzen ---------- */
+  function save() { if (!LS.set(K.done, collected)) toast("Speichern im Browser nicht möglich – bitte „Fortschritt sichern“ nutzen."); }
+  function setDone(nr, on, date) {
+    if (on) collected[nr] = date || collected[nr] || todayIso(); else delete collected[nr];
+    save(); refreshMarker(nr); updateRow(nr); updateProgress(); applyFilter();
+  }
+
+  /* ---------- Fortschritt ---------- */
+  const awardsEl = $("#awards");
+  awardsEl.innerHTML = AWARDS.map((a, i) =>
+    `<button type="button" class="award" data-i="${i}" style="--c:${a.color}" title="${a.full}: ${a.n} Stempel"><i></i>${a.name} <small>${a.n}</small>${a.req ? '<small class="req"></small>' : ""}</button>`
+  ).join("");
+  const countDone = () => Object.keys(collected).filter((k) => byNr.has(+k)).length;
+  const reqDone = (a) => a.req ? [...a.req].filter((n) => collected[n]).length : 0;
+  /* fehlende Stempel bis zum Abzeichen – Pflichtstempel zählen auch zur Gesamtzahl */
+  const needFor = (a, c) => Math.max(a.n - c, a.req ? a.req.size - reqDone(a) : 0, 0);
+  awardsEl.addEventListener("click", (e) => {
+    const b = e.target.closest(".award"); if (!b) return;
+    const a = AWARDS[+b.dataset.i], c = countDone(), need = needFor(a, c);
+    let msg = `${a.full}: ${a.n} verschiedene Stempel${a.note ? ", " + a.note : ""}.`;
+    msg += need ? ` Es fehlen noch ${need}` + (a.req ? ` (gesamt ${Math.min(c, a.n)}/${a.n}, Pflicht ${reqDone(a)}/${a.req.size}).` : ".") : " Erreicht!";
+    toast(msg);
+  });
+  let lastNext = -1;
+  function updateProgress() {
+    const c = countDone();
+    $("#cnt").textContent = c;
+    $("#meterFill").style.width = (c / 222 * 100) + "%";
+    const ni = AWARDS.findIndex((a) => needFor(a, c) > 0);
+    awardsEl.querySelectorAll(".award").forEach((el, i) => {
+      const a = AWARDS[i];
+      el.classList.toggle("got", needFor(a, c) === 0);
+      el.classList.toggle("next", i === ni);
+      const r = el.querySelector(".req"); if (r) r.textContent = `· ${reqDone(a)}/${a.req.size} Pflicht`;
+    });
+    const nx = AWARDS[ni];
+    $("#next").textContent = nx ? `Noch ${needFor(nx, c)} bis ${nx.name}` : "Harzer Wanderkaiser!";
+    if (ni !== lastNext) {
+      const target = awardsEl.children[Math.max(0, (ni < 0 ? AWARDS.length : ni) - 1)];
+      awardsEl.scrollTo({ left: Math.max(0, target.offsetLeft - 2), behavior: lastNext < 0 ? "auto" : "smooth" });
+      lastNext = ni;
+    }
+  }
+
+  /* ---------- Liste ---------- */
+  const listEl = $("#list");
+  const rows = new Map();
+  for (const s of byNr.values()) {
+    const li = document.createElement("li");
+    li.className = "row"; li.dataset.nr = s.nr;
+    li.innerHTML = `
+      <button type="button" class="row-main"><span class="badge">${s.nr}</span><span class="row-t"><b></b><small></small></span></button>
+      <label class="chk"><input type="checkbox" id="chk-${s.nr}" aria-label="Nr. ${s.nr} gestempelt"></label>`;
+    li.querySelector("b").textContent = s.name;
+    li.querySelector(".row-main").addEventListener("click", () => focusStamp(s.nr));
+    li.querySelector("input").addEventListener("change", (e) => setDone(s.nr, e.target.checked));
+    li._search = `${s.nr} ${pad(s.nr)} ${s.name} ${s.ort}${STEIGER.has(s.nr) ? " steiger bergbau" : ""}`.toLowerCase();
+    rows.set(s.nr, li); listEl.appendChild(li);
+  }
+  const emptyEl = document.createElement("li");
+  emptyEl.className = "empty"; emptyEl.textContent = "Keine Stempelstelle passt zur Suche."; emptyEl.hidden = true;
+  listEl.appendChild(emptyEl);
+
+  function updateRow(nr) {
+    const li = rows.get(nr); if (!li) return;
+    const d = collected[nr], s = byNr.get(nr);
+    li.classList.toggle("done", !!d);
+    li.querySelector("input").checked = !!d;
+    const small = li.querySelector("small");
+    small.textContent = "";
+    if (STEIGER.has(nr)) { const st = document.createElement("span"); st.className = "st"; st.innerHTML = MINER + "Steiger · "; small.appendChild(st); }
+    small.append(s.ort + (d ? ` · gestempelt ${fmtDate(d)}` : ""));
+    if (!posOf(nr)) { const em = document.createElement("em"); em.textContent = " · keine Position"; small.appendChild(em); }
+  }
+  const updateAllRows = () => { for (const nr of byNr.keys()) updateRow(nr); };
+
+  function applyFilter() {
+    mapEl.classList.toggle("f-open", filter === "open");
+    mapEl.classList.toggle("f-done", filter === "done");
+    mapEl.classList.toggle("f-steiger", steigerOnly);
+    const q = $("#q").value.trim().toLowerCase();
+    let shown = 0;
+    for (const [nr, li] of rows) {
+      const d = !!collected[nr];
+      const ok = (filter === "all" || (filter === "done" ? d : !d)) && (!q || li._search.includes(q)) && (!steigerOnly || STEIGER.has(nr));
+      li.hidden = !ok; if (ok) shown++;
+    }
+    emptyEl.hidden = shown > 0;
+    emptyEl.textContent = q ? "Keine Stempelstelle passt zur Suche." : (filter === "done" ? "Noch nichts gestempelt." : "Alle gestempelt!");
+  }
+  $("#q").addEventListener("input", applyFilter);
+  const steigerBtn = $("#steigerBtn");
+  function setSteiger(on) { steigerOnly = on; steigerBtn.setAttribute("aria-pressed", on); applyFilter(); }
+  steigerBtn.addEventListener("click", () => { setSteiger(!steigerOnly); if (steigerOnly) fitAll([...STEIGER]); });
+  document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
+    filter = b.dataset.f;
+    document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    applyFilter();
+  }));
+
+  const panel = $("#panel"), listBtn = $("#listBtn");
+  const isSheet = () => window.matchMedia("(max-width: 899.98px)").matches;
+  const openPanel = (o) => { panel.classList.toggle("open", o); listBtn.setAttribute("aria-expanded", o); if (o && isSheet()) setTimeout(() => $("#q").focus({ preventScroll: true }), 260); };
+  listBtn.addEventListener("click", () => openPanel(!panel.classList.contains("open")));
+  $("#closePanel").addEventListener("click", () => openPanel(false));
+
+  function focusStamp(nr) {
+    const p = posOf(nr);
+    if (!p) { toast(`Für Nr. ${nr} ist noch keine Position bekannt.`); return; }
+    if (isSheet()) openPanel(false);
+    if (steigerOnly && !STEIGER.has(nr)) setSteiger(false);
+    if (filter !== "all" && ((filter === "done") !== !!collected[nr])) document.querySelector('.seg button[data-f="all"]').click();
+    map.flyTo([p.lat, p.lon], Math.max(map.getZoom(), 15), { duration: 0.8 });
+    map.once("moveend", () => markers.get(nr)?.openPopup());
+  }
+
+  /* ---------- Standort ---------- */
+  let meMarker;
+  const LocCtl = L.Control.extend({
+    options: { position: "topright" },
+    onAdd() {
+      const box = L.DomUtil.create("div", "leaflet-bar locctl");
+      const a = L.DomUtil.create("a", "", box);
+      a.href = "#"; a.title = "Meinen Standort zeigen"; a.setAttribute("role", "button"); a.setAttribute("aria-label", "Meinen Standort zeigen");
+      a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>';
+      L.DomEvent.disableClickPropagation(box);
+      L.DomEvent.on(a, "click", (e) => { L.DomEvent.preventDefault(e); toast("Suche Standort …"); map.locate({ setView: true, maxZoom: 14, enableHighAccuracy: true }); });
+      return box;
+    }
+  });
+  new LocCtl().addTo(map);
+  map.on("locationfound", (e) => {
+    const icon = L.divIcon({ className: "", html: '<div class="me-dot"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+    if (meMarker) meMarker.setLatLng(e.latlng); else meMarker = L.marker(e.latlng, { icon, interactive: false }).addTo(map);
+  });
+  map.on("locationerror", () => toast("Standort nicht verfügbar. Ist die Freigabe im Browser erlaubt?"));
+
+  /* ---------- Statuszeile ---------- */
+  function updateStatus(extra) {
+    const have = STAMPS.filter((s) => posOf(s[0])).length;
+    const missing = STAMPS.filter((s) => !posOf(s[0])).map((s) => s[0]);
+    const src = [];
+    if (gpx) src.push(`offizielle GPS-Daten (${Object.keys(gpx.pts).length} Stellen, geladen ${fmtDate(gpx.loaded)})`);
+    if (osm) src.push(`OpenStreetMap (Stand ${fmtDate(osm.fetched)})`);
+    let html = `<b>${have} von 222</b> Stellen auf der Karte` + (src.length ? ` · ${src.join(" + ")}` : "");
+    if (missing.length && missing.length < 222) html += `<br>Ohne Position: ${missing.length > 30 ? missing.slice(0, 30).join(", ") + " …" : missing.join(", ")}`;
+    if (extra) html += `<br>${extra}`;
+    $("#status").innerHTML = html;
+  }
+
+  /* ---------- OpenStreetMap laden ---------- */
+  let loading = false;
+  async function loadOsm(manual) {
+    if (loading) return; loading = true;
+    updateStatus("Lade Positionen aus OpenStreetMap …");
+    for (const ep of OVERPASS_ENDPOINTS) {
+      try {
+        const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 60000);
+        const r = await fetch(ep, { method: "POST", body: new URLSearchParams({ data: OVERPASS_QUERY }), signal: ctl.signal });
+        clearTimeout(tm);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const j = await r.json();
+        const pts = parseOsm(j.elements);
+        if (Object.keys(pts).length < 20) throw new Error("zu wenige Treffer");
+        const first = !osm;
+        osm = { fetched: new Date().toISOString(), pts };
+        LS.set(K.osm, osm);
+        renderMarkers(); updateAllRows(); updateStatus();
+        if (first && !saved) fitAll();
+        if (manual) toast(`${Object.keys(pts).length} Positionen aus OpenStreetMap geladen.`);
+        loading = false; return;
+      } catch (e) { /* nächsten Server versuchen */ }
+    }
+    loading = false;
+    updateStatus(osm ? "OpenStreetMap gerade nicht erreichbar – gespeicherte Positionen werden genutzt." : "OpenStreetMap gerade nicht erreichbar. Später erneut versuchen oder offizielle GPX/ZIP laden.");
+    if (manual || !osm) toast("Positionen konnten nicht geladen werden.");
+  }
+  function fitAll(nrs) {
+    const ll = []; for (const [nr, m] of markers) if (!nrs || nrs.includes(nr)) ll.push(m.getLatLng());
+    if (ll.length) map.fitBounds(L.latLngBounds(ll), { padding: [30, 30] });
+  }
+  $("#refreshOsm").addEventListener("click", () => loadOsm(true));
+
+  /* ---------- Offizielle GPX/ZIP ---------- */
+  const xml = (t) => new DOMParser().parseFromString(t, "application/xml");
+  $("#gpxBtn").addEventListener("click", () => $("#gpxFile").click());
+  $("#gpxFile").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try {
+      const found = [];
+      if (/\.zip$/i.test(f.name) || f.type.includes("zip")) {
+        if (!window.JSZip) throw new Error("ZIP-Bibliothek nicht geladen");
+        const zip = await JSZip.loadAsync(f);
+        const files = Object.values(zip.files).filter((z) => !z.dir && /\.gpx$/i.test(z.name));
+        for (const z of files) found.push(...parseGpxWith(xml, await z.async("string"), z.name));
+      } else {
+        found.push(...parseGpxWith(xml, await f.text(), f.name));
+      }
+      const pts = {}; for (const w of found) if (!pts[w.nr]) pts[w.nr] = [w.lat, w.lon];
+      const n = Object.keys(pts).length;
+      if (!n) { toast("In der Datei wurden keine nummerierten Stempelstellen gefunden."); return; }
+      gpx = { loaded: new Date().toISOString(), file: f.name, pts };
+      LS.set(K.gpx, gpx);
+      renderMarkers(); updateAllRows(); updateStatus();
+      if (!osm) fitAll();
+      toast(`${n} Positionen aus „${f.name}“ übernommen.`);
+    } catch (err) {
+      toast("Datei konnte nicht gelesen werden: " + err.message);
+    }
+  });
+
+  /* ---------- Sicherung ---------- */
+  $("#exportBtn").addEventListener("click", () => {
+    const data = { app: "harzer-stempelkarte", version: 1, exported: new Date().toISOString(), collected };
+    const blob = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `hwn-fortschritt-${todayIso()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  $("#importBtn").addEventListener("click", () => $("#importFile").click());
+  $("#importFile").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      const src = j.collected || j;
+      let added = 0;
+      for (const k in src) {
+        const nr = +k;
+        if (!validNr(nr) || collected[nr]) continue;
+        collected[nr] = typeof src[k] === "string" && /^\d{4}-\d{2}-\d{2}/.test(src[k]) ? src[k].slice(0, 10) : todayIso();
+        added++;
+      }
+      save();
+      for (const m of markers.keys()) refreshMarker(m);
+      updateAllRows(); updateProgress(); applyFilter();
+      toast(added ? `${added} Stempel aus der Sicherung übernommen.` : "Keine neuen Stempel in der Sicherung.");
+    } catch (err) { toast("Sicherung konnte nicht gelesen werden."); }
+  });
+
+  /* ---------- Offline (nur wenn online gehostet) ---------- */
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+
+  /* ---------- Start ---------- */
+  renderMarkers(); updateAllRows(); updateProgress(); applyFilter(); updateStatus();
+  const stale = !osm || (Date.now() - new Date(osm.fetched).getTime() > 14 * 864e5);
+  if (stale) loadOsm(false);
+})();
+</script>
+</body>
+</html>
