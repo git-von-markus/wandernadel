@@ -323,7 +323,7 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
 .stack .btn { justify-content: flex-start; padding: 8px 16px; gap: 14px; }
 .hint { margin: 16px 0 0; color: var(--muted); font-size: .88rem; }
 .hint a { color: var(--brand); font-weight: 600; }
-.ver { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; text-align: center; font-variant-numeric: tabular-nums; }
+.ver { margin: 20px 0 0; color: var(--muted); font-size: .74rem; text-align: center; font-variant-numeric: tabular-nums; opacity: .8; }
 
 /* ---------- Fotoansicht ---------- */
 .viewer { position: fixed; inset: 0; z-index: 1300; background: rgba(0, 0, 0, .94); display: flex; align-items: center; justify-content: center; }
@@ -816,8 +816,8 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
 
 <script>
 (() => {
-  /* Bei jeder Änderung an der Seite hochzählen – wird unter „Daten & Sicherung“ angezeigt */
-  const APP_VERSION = { nr: 7, date: "2026-10-30" };
+  /* Bei jeder Änderung an der Seite hochzählen – steht unten unter „Daten & Sicherung“ */
+  const APP_VERSION = "1.1.1";
 
   /* ---------- Speicher (alte Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
   const LS = {
@@ -1132,30 +1132,68 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     if (e.key !== "Escape") return;
     if (!viewer.hidden) closeViewer(); else if (openEl) closePanel(); else if (detCtl.state !== "closed") detCtl.set("closed");
   });
+  /* Abzeichen & Daten: am Griff ziehen oder – wenn ganz oben gescrollt – überall in der Ansicht runterziehen */
   for (const el of [awardsEl, dataEl]) {
-    const head = el.querySelector(".p-head");
+    const head = el.querySelector(".p-head"), body = el.querySelector(".p-body");
     let d = null;
-    head.addEventListener("pointerdown", (e) => {
-      if (e.target.closest("button, a, input")) return;
-      d = { id: e.pointerId, y0: e.clientY, moved: false, v: 0, lastY: e.clientY, lastT: performance.now(), dy: 0 };
-    });
-    head.addEventListener("pointermove", (e) => {
-      if (!d || e.pointerId !== d.id) return;
-      const dy = e.clientY - d.y0;
-      if (!d.moved) { if (Math.abs(dy) < 7) return; d.moved = true; el.classList.add("drag"); try { head.setPointerCapture(e.pointerId); } catch (err) {} }
+    const begin = (y) => { d = { y0: y, dy: 0, v: 0, lastY: y, lastT: performance.now() }; el.classList.add("drag"); };
+    const move = (y) => {
+      const dy = y - d.y0;
       d.dy = dy > 0 ? dy : dy / 4;
       el.style.setProperty("--py", d.dy + "px");
-      const now = performance.now(); d.v = (e.clientY - d.lastY) / Math.max(1, now - d.lastT); d.lastY = e.clientY; d.lastT = now;
+      const now = performance.now(), dt = now - d.lastT;
+      if (dt > 0) d.v = 0.7 * ((y - d.lastY) / dt) + 0.3 * d.v;
+      d.lastY = y; d.lastT = now;
+    };
+    const end = () => {
+      el.classList.remove("drag");
+      const x = d; d = null; suppressClickUntil = performance.now() + 350;
+      if (x.dy > 90 || x.v > 0.45) closePanel(); else el.style.setProperty("--py", "0px");
+    };
+    let p = null;
+    head.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (e.target.closest("button, a, input")) return;
+      p = { id: e.pointerId, y0: e.clientY, moved: false, onGrab: !!e.target.closest(".grab") };
+    });
+    head.addEventListener("pointermove", (e) => {
+      if (!p || e.pointerId !== p.id) return;
+      if (!p.moved) {
+        if (Math.abs(e.clientY - p.y0) < 7) return;
+        p.moved = true; try { head.setPointerCapture(e.pointerId); } catch (err) {}
+        begin(p.y0);
+      }
+      move(e.clientY);
     });
     const up = (e) => {
-      if (!d || e.pointerId !== d.id) return;
-      const x = d; d = null;
-      if (!x.moved) { if (e.target.closest(".grab")) closePanel(); return; }
-      el.classList.remove("drag");
-      if (x.dy > 90 || x.v > 0.5) closePanel(); else el.style.setProperty("--py", "0px");
+      if (!p || e.pointerId !== p.id) return;
+      const x = p; p = null;
+      if (x.moved) { if (d) end(); }
+      else if (x.onGrab && e.type === "pointerup") closePanel();
     };
     head.addEventListener("pointerup", up);
     head.addEventListener("pointercancel", up);
+    let t = null;
+    body.addEventListener("touchstart", (e) => {
+      t = null;
+      if (e.touches.length !== 1 || d) return;
+      t = { x0: e.touches[0].clientX, y0: e.touches[0].clientY, decided: false, active: false };
+    }, { passive: true });
+    body.addEventListener("touchmove", (e) => {
+      if (!t) return;
+      const x = e.touches[0].clientX, y = e.touches[0].clientY;
+      if (!t.decided) {
+        const dx = x - t.x0, dy = y - t.y0;
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        t.decided = true;
+        if (dy > 0 && Math.abs(dy) > Math.abs(dx) && body.scrollTop <= 0) { t.active = true; begin(t.y0); }
+        else { t = null; return; }
+      }
+      if (t.active) { if (e.cancelable) e.preventDefault(); move(y); }
+    }, { passive: false });
+    const tend = () => { if (t && t.active && d) end(); t = null; };
+    body.addEventListener("touchend", tend);
+    body.addEventListener("touchcancel", tend);
   }
 
   /* ---------- Detail füllen ---------- */
@@ -1728,7 +1766,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   }
 
   /* ---------- Start ---------- */
-  $("#ver").textContent = `Harzer Stempelkarte · Version ${APP_VERSION.nr} vom ${fmtDate(APP_VERSION.date)}`;
+  $("#ver").textContent = "v" + APP_VERSION;
   renderMarkers(); updateAllRows(); updateProgress(); applyFilter(); updateStatus();
   layoutAll();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutAll);
