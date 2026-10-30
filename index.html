@@ -467,11 +467,11 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
     <div class="stack">
       <button class="btn" id="exportBtn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Sicherung erstellen</button>
       <button class="btn" id="importBtn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>Sicherung einlesen</button>
-      <button class="btn" id="refreshOsm" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>Positionen neu laden</button>
+      <button class="btn" id="refreshOsm" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>Positionen live aktualisieren</button>
       <button class="btn" id="gpxBtn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5"/></svg>Offizielle GPX/ZIP einlesen</button>
     </div>
     <p class="hint">Stempel, Bewertungen, Notizen und Fotos liegen nur auf diesem Handy. „Sicherung erstellen“ packt alles in eine ZIP-Datei, die du in Dateien, iCloud/Drive oder per Nachricht ablegen kannst.</p>
-    <p class="hint">Positionen kommen aus OpenStreetMap, ergänzt um komoot. Genauer sind die <a href="https://www.harzer-wandernadel.de/stempelstellen/gps-download/" target="_blank" rel="noopener">offiziellen GPS-Daten</a>: ZIP herunterladen und hier einlesen.</p>
+    <p class="hint">Positionen kommen aus OpenStreetMap und werden einmal pro Woche automatisch aktualisiert. Genauer sind die <a href="https://www.harzer-wandernadel.de/stempelstellen/gps-download/" target="_blank" rel="noopener">offiziellen GPS-Daten</a>: ZIP herunterladen und hier einlesen.</p>
     <p class="hint">Schon angesehene Kartenbereiche funktionieren auch ohne Netz. Vor einer Tour also einmal im WLAN durch die Gegend zoomen.</p>
     <input type="file" id="gpxFile" accept=".gpx,.zip,.xml,application/gpx+xml,application/zip" hidden>
     <input type="file" id="importFile" accept=".zip,.json,application/zip,application/json" hidden>
@@ -855,15 +855,13 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   function posOf(nr) {
     if (gpx?.pts?.[nr]) return { lat: gpx.pts[nr][0], lon: gpx.pts[nr][1], src: "gpx" };
     if (osm?.pts?.[nr]) return { lat: osm.pts[nr][0], lon: osm.pts[nr][1], src: "osm" };
-    const k = KM.get(nr);
-    if (k && k.ok) return { lat: k.lat, lon: k.lon, src: "komoot" };
     return null;
   }
-  /* komoot-Highlight nur, wenn es wirklich an dieser Stempelstelle liegt */
+  /* komoot nur für den Route-Link – und nur, wenn das Highlight wirklich an dieser Stempelstelle liegt */
   function komootFor(nr) {
     const k = KM.get(nr), p = posOf(nr);
     if (!k || !p) return null;
-    return p.src === "komoot" || hav(p, k) <= 0.6 ? k : null;
+    return hav(p, k) <= 0.6 ? k : null;
   }
   function routeFor(nr) {
     const k = komootFor(nr);
@@ -1192,7 +1190,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     ra.hidden = !r;
     if (r) { ra.href = r.href; $("#dRouteLbl").textContent = r.label; }
     $("#dSrc").textContent = !p ? "Für diese Stelle ist noch keine Position bekannt." :
-      "Position: " + ({ gpx: "offizielle GPS-Daten", osm: "OpenStreetMap", komoot: "komoot" })[p.src] + (komootFor(nr) ? " · Route über komoot-Highlight" : "");
+      "Position: " + (p.src === "gpx" ? "offizielle GPS-Daten" : "OpenStreetMap") + (komootFor(nr) ? " · Route über komoot-Highlight" : "");
     paintMoreSummary();
     if (detCtl.state !== "closed") detCtl.layout();
   }
@@ -1556,40 +1554,63 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     const missing = STAMPS.filter((s, i) => !pos[i]).map((s) => s[0]);
     const src = [];
     if (gpx) src.push(`offizielle GPS-Daten (${Object.keys(gpx.pts).length})`);
-    if (osm) src.push(`OpenStreetMap (${Object.keys(osm.pts).length}, Stand ${fmtDate(osm.fetched)})`);
-    const fromK = pos.filter((p) => p && p.src === "komoot").length;
-    if (fromK) src.push(`komoot (${fromK})`);
+    if (osm) src.push(`OpenStreetMap (${Object.keys(osm.pts).length}, ${osm.live ? "live geladen" : "Stand"} ${fmtDate(osm.fetched)})`);
     let html = `<b>${have} von 222</b> Stellen auf der Karte` + (src.length ? ` · ${src.join(" + ")}` : "");
     if (missing.length && missing.length < 222) html += `<br>Ohne Position: ${missing.length > 30 ? missing.slice(0, 30).join(", ") + " …" : missing.join(", ")}`;
     if (extra) html += `<br>${extra}`;
     $("#status").innerHTML = html;
   }
 
-  /* ---------- OpenStreetMap laden ---------- */
+  /* ---------- Positionen ----------
+     Normalfall: stempel-positionen.json aus dem Repo (wöchentlich per GitHub Action aus OpenStreetMap
+     erzeugt) – lädt sofort und ist offline im Zwischenspeicher. Overpass nur noch per Button oder als
+     Notlösung, wenn die Datei fehlt. */
+  function applyPositions(next) {
+    osm = next; LS.set(K.osm, osm);
+    renderMarkers(); updateAllRows(); updateStatus();
+    if (detailNr) paintDetail();
+  }
+  async function loadBundled() {
+    try {
+      const r = await fetch("stempel-positionen.json", { cache: "no-cache" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json(), pts = {};
+      for (const k in j.pts || {}) if (validNr(+k)) pts[k] = j.pts[k];
+      if (Object.keys(pts).length < 50) throw new Error("zu wenige Stellen");
+      if (!osm || !osm.live || new Date(j.stand) >= new Date(osm.fetched)) applyPositions({ fetched: j.stand, pts, live: false });
+      return true;
+    } catch (e) { return false; }
+  }
   let loading = false;
   async function loadOsm(manual) {
     if (loading) return; loading = true;
-    updateStatus("Lade Positionen aus OpenStreetMap …");
+    updateStatus("Lade Positionen live aus OpenStreetMap …");
+    if (manual) toast("Lade Positionen aus OpenStreetMap … das kann bis zu einer Minute dauern.");
     for (const ep of OVERPASS_ENDPOINTS) {
+      if (document.hidden) break;
       try {
-        const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 60000);
+        const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 30000);
         const r = await fetch(ep, { method: "POST", body: new URLSearchParams({ data: OVERPASS_QUERY }), signal: ctl.signal });
         clearTimeout(tm);
         if (!r.ok) throw new Error("HTTP " + r.status);
         const pts = parseOsm((await r.json()).elements);
-        if (Object.keys(pts).length < 20) throw new Error("zu wenige Treffer");
-        osm = { fetched: new Date().toISOString(), pts };
-        LS.set(K.osm, osm);
-        renderMarkers(); updateAllRows(); updateStatus();
-        if (detailNr) paintDetail();
+        if (Object.keys(pts).length < 150) throw new Error("zu wenige Treffer");
+        applyPositions({ fetched: new Date().toISOString(), pts, live: true });
         if (manual) toast(`${Object.keys(pts).length} Positionen geladen.`);
-        loading = false; return;
+        loading = false; return true;
       } catch (e) { /* nächsten Server versuchen */ }
     }
     loading = false;
-    updateStatus(osm ? "OpenStreetMap gerade nicht erreichbar – gespeicherte Positionen werden genutzt." : "OpenStreetMap gerade nicht erreichbar – Positionen von komoot werden genutzt.");
-    if (manual) toast("Positionen konnten nicht geladen werden.");
+    updateStatus(osm ? "OpenStreetMap gerade nicht erreichbar – die gespeicherten Positionen werden genutzt." : "OpenStreetMap gerade nicht erreichbar. Bitte später erneut versuchen.");
+    if (manual) toast("OpenStreetMap ist gerade nicht erreichbar. Die gespeicherten Positionen bleiben.");
+    return false;
   }
+  async function ensurePositions() {
+    if (await loadBundled()) return;
+    if (!osm) await loadOsm(false);
+  }
+  /* Wurde die App beim Laden in den Hintergrund geschickt, beim Zurückkommen erneut versuchen */
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && !osm && !loading) ensurePositions(); });
   function fitTo(nrs) {
     const ll = []; for (const [nr, m] of markers) if (!nrs || nrs.includes(nr)) ll.push(m.getLatLng());
     if (!ll.length) return;
@@ -1705,8 +1726,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   renderMarkers(); updateAllRows(); updateProgress(); applyFilter(); updateStatus();
   layoutAll();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutAll);
-  const stale = !osm || (Date.now() - new Date(osm.fetched).getTime() > 14 * 864e5);
-  if (stale) loadOsm(false);
+  ensurePositions();
 })();
 </script>
 </body>
