@@ -110,6 +110,8 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
 .z-low .pin.sel .pin-dot { width: 30px; height: 30px; font-size: 13px; border-width: 2.5px; }
 .z-low .pin.sel .pin-m { display: grid; }
 .f-open .pin.done, .f-done .pin:not(.done), .f-steiger .pin:not(.steiger) { display: none; }
+.pin.intour .pin-dot { box-shadow: 0 0 0 3px #FFFFFF, 0 0 0 6px #1E5BD8, 0 1px 4px rgba(0, 0, 0, .4); }
+.pin.intour.sel .pin-dot { box-shadow: 0 0 0 3px #FFFFFF, 0 0 0 6px #1E5BD8, 0 0 0 11px rgba(43, 103, 68, .4); }
 .me { width: 18px; height: 18px; border-radius: 50%; background: #2B7BE4; border: 3px solid #FFFFFF; box-shadow: 0 0 0 7px rgba(43, 123, 228, .22), 0 1px 4px rgba(0, 0, 0, .35); }
 
 /* ---------- Oben: Fortschritt ---------- */
@@ -139,6 +141,13 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
 }
 .fab[aria-pressed="true"] { color: var(--brand); }
 .fab:active, .prog:active { transform: scale(.96); }
+.tourbtn {
+  position: fixed; z-index: 800; left: max(12px, env(safe-area-inset-left, 0px)); bottom: calc(var(--peekH, 150px) + 28px);
+  height: 48px; padding: 0 18px 0 14px; border: 0; border-radius: 999px; background: #1E5BD8; color: #FFFFFF; box-shadow: var(--shadow-s);
+  display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: .95rem; max-width: calc(100vw - 100px);
+}
+.tourbtn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tourbtn:active { transform: scale(.96); }
 .mapbtns {
   position: fixed; z-index: 800; display: grid; gap: 10px;
   right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(var(--peekH, 150px) + 28px);
@@ -244,7 +253,22 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
 @keyframes thump { 0% { transform: scale(1); } 30% { transform: scale(.94) rotate(-1.5deg); } 65% { transform: scale(1.03); } 100% { transform: scale(1); } }
 .d-date { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; color: var(--muted); font-size: .95rem; }
 .d-date input { height: 44px; padding: 0 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface-2); font-size: 16px; min-width: 0; }
-.d-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.d-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+.act3 {
+  min-height: 66px; padding: 8px 6px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  font-weight: 600; font-size: .88rem; line-height: 1.15; text-align: center; text-decoration: none;
+}
+.act3 .i { color: var(--brand); }
+.act3:active { background: var(--surface-2); }
+.act3[aria-pressed="true"] { background: #E6EEFC; border-color: #1E5BD8; color: #1E5BD8; }
+.act3[aria-pressed="true"] .i { color: #1E5BD8; }
+:root[data-theme="dark"] .act3[aria-pressed="true"] { background: #1A2742; color: #8DB2FF; border-color: #8DB2FF; }
+:root[data-theme="dark"] .act3[aria-pressed="true"] .i { color: #8DB2FF; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .act3[aria-pressed="true"] { background: #1A2742; color: #8DB2FF; border-color: #8DB2FF; }
+  :root:not([data-theme="light"]) .act3[aria-pressed="true"] .i { color: #8DB2FF; }
+}
 .btn {
   min-height: 52px; padding: 8px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface);
   display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; text-align: center; text-decoration: none; color: var(--fg); line-height: 1.2;
@@ -323,6 +347,22 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
 .stack .btn { justify-content: flex-start; padding: 8px 16px; gap: 14px; }
 .hint { margin: 16px 0 0; color: var(--muted); font-size: .88rem; }
 .hint a { color: var(--brand); font-weight: 600; }
+.topts { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+.tlist { list-style: none; margin: 0 0 14px; padding: 0; counter-reset: t; }
+.tlist li { display: flex; align-items: center; gap: 12px; min-height: 60px; border-bottom: 1px solid var(--line); }
+.tlist li:last-child { border-bottom: 0; }
+.tlist .step { flex: none; width: 24px; color: var(--muted); font: 700 .9rem/1 var(--f-display); text-align: right; font-variant-numeric: tabular-nums; }
+.tlist .badge { width: 38px; height: 38px; font-size: .92rem; }
+.tlist .tt { flex: 1; min-width: 0; display: grid; }
+.tlist .tt b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tlist .tt small { color: var(--muted); font-size: .84rem; }
+.tlist li.done .badge { background: var(--ink); border-color: var(--ink); color: var(--ink-fg); }
+.tempty { margin: 6px 0 16px; color: var(--muted); }
+.tsum { margin: 0 0 14px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); display: grid; gap: 4px; }
+.tsum b { font: 700 1.35rem/1.15 var(--f-display); font-variant-numeric: tabular-nums; }
+.tsum small { color: var(--muted); font-size: .85rem; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+.btn.busy { opacity: .7; pointer-events: none; }
 .ver { margin: 20px 0 0; color: var(--muted); font-size: .74rem; text-align: center; font-variant-numeric: tabular-nums; opacity: .8; }
 
 /* ---------- Fotoansicht ---------- */
@@ -368,6 +408,11 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
     <svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
 </div>
+
+<button class="tourbtn" id="tourBtn" type="button" hidden>
+  <svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg>
+  <span id="tourBtnLbl">Tour</span>
+</button>
 
 <div class="mapbtns">
   <button class="fab" id="layerBtn" type="button" aria-label="Kartenstil wechseln" aria-pressed="false">
@@ -416,8 +461,9 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
       <button class="stamp" id="dStamp" type="button" aria-pressed="false"></button>
       <div class="d-date" id="dDateRow"><label for="dDate">Gestempelt am</label><input type="date" id="dDate"></div>
       <div class="d-actions">
-        <a class="btn" id="dInfo" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Infos</a>
-        <a class="btn" id="dRoute" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg><span id="dRouteLbl">In komoot</span></a>
+        <a class="act3" id="dInfo" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Infos</a>
+        <a class="act3" id="dRoute" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span id="dRouteLbl">komoot</span></a>
+        <button class="act3" id="dTour" type="button" aria-pressed="false"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg><span id="dTourLbl">Zur Tour</span></button>
       </div>
       <button class="more" id="dMore" type="button">
         <svg class="i" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h6M9 14h6"/></svg>
@@ -456,6 +502,29 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
     <div class="p-top"><h2 class="p-title">Abzeichen</h2></div>
   </div>
   <div class="p-body"><ul class="aw-list" id="awList"></ul></div>
+</section>
+
+<section class="panel" id="tourPanel" aria-label="Tour">
+  <div class="p-head">
+    <span class="grab" aria-hidden="true"></span>
+    <div class="p-top"><h2 class="p-title" id="tTitle">Tour</h2></div>
+  </div>
+  <div class="p-body">
+    <div class="topts">
+      <button class="chip" type="button" id="tRound" aria-pressed="true">Rundtour</button>
+      <button class="chip" type="button" id="tFromMe" aria-pressed="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Start am Standort</button>
+    </div>
+    <div class="tsum" id="tSum" hidden></div>
+    <p class="tempty" id="tEmpty">Noch keine Stempel in der Tour. Öffne einen Stempel und tippe auf „Zur Tour“.</p>
+    <ol class="tlist" id="tList"></ol>
+    <div class="stack">
+      <button class="btn primary" id="tCalc" type="button"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg><span id="tCalcLbl">Route berechnen</span></button>
+      <button class="btn" id="tGpx" type="button" disabled><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>GPX für komoot</button>
+      <button class="btn" id="tClear" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Tour leeren</button>
+    </div>
+    <p class="hint">Die Reihenfolge wird beim Berechnen automatisch optimiert. Die GPX-Datei öffnest du in komoot über „Teilen“ → komoot oder in komoot unter Profil → Geplant → Importieren.</p>
+    <p class="hint">Routing: <a href="https://brouter.de" target="_blank" rel="noopener">BRouter</a> (Wanderprofil), Daten © OpenStreetMap-Mitwirkende.</p>
+  </div>
 </section>
 
 <section class="panel" id="dataPanel" aria-label="Daten und Sicherung">
@@ -817,19 +886,21 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
 <script>
 (() => {
   /* Version unten unter „Daten & Sicherung“: 1.x.y – x = größere Updates (z. B. Routen), y = kleine Fixes/Anpassungen */
-  const APP_VERSION = "1.1.7";
+  const APP_VERSION = "1.2.0-beta.1";
 
   /* ---------- Speicher (alte Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
   const LS = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
   };
-  const K = { done: "hwn.collected.v1", osm: "hwn.coords.osm.v1", gpx: "hwn.coords.gpx.v1", view: "hwn.view.v1", layer: "hwn.layer.v1", journal: "hwn.journal.v1" };
+  const K = { done: "hwn.collected.v1", osm: "hwn.coords.osm.v1", gpx: "hwn.coords.gpx.v1", view: "hwn.view.v1", layer: "hwn.layer.v1", journal: "hwn.journal.v1", tour: "hwn.tour.v1" };
 
   let collected = LS.get(K.done, {});
   let osm = LS.get(K.osm, null);
   let gpx = LS.get(K.gpx, null);
   let journal = LS.get(K.journal, {});      // { nr: { r: 0–5, notes: [{ id, d, t }] } }
+  let tour = Object.assign({ nrs: [], round: true, fromMe: false }, LS.get(K.tour, {}));
+  tour.nrs = (tour.nrs || []).filter((n) => validNr(n));
   let filter = "all", steigerOnly = false, nearMode = false;
 
   const $ = (s) => document.querySelector(s);
@@ -870,11 +941,11 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   }
   function routeFor(nr) {
     const k = komootFor(nr);
-    if (k) return { href: `https://www.komoot.com/highlight/${k.id}`, label: "In komoot" };
+    if (k) return { href: `https://www.komoot.com/highlight/${k.id}`, label: "komoot" };
     const p = posOf(nr); if (!p) return null;
     return {
       href: isIOS ? `https://maps.apple.com/?daddr=${p.lat},${p.lon}&dirflg=w` : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}&travelmode=walking`,
-      label: "Route"
+      label: "Karten-App"
     };
   }
 
@@ -929,7 +1000,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   const markers = new Map();
   let selNr = null;
   const iconFor = (nr, popAnim) => L.divIcon({
-    className: "pin" + (collected[nr] ? " done" : "") + (STEIGER.has(nr) ? " steiger" : "") + (nr === selNr ? " sel" : "") + (popAnim ? " pop" : ""),
+    className: "pin" + (collected[nr] ? " done" : "") + (STEIGER.has(nr) ? " steiger" : "") + (tour.nrs.includes(nr) ? " intour" : "") + (nr === selNr ? " sel" : "") + (popAnim ? " pop" : ""),
     html: `<div class="pin-in"><div class="pin-dot">${nr}</div>${STEIGER.has(nr) ? `<span class="pin-m">${MINER}</span>` : ""}</div>`,
     iconSize: [38, 38], iconAnchor: [19, 19]
   });
@@ -1098,7 +1169,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   window.addEventListener("resize", layoutAll);
 
   /* ---------- Zurück-Taste & Überlagerungen ---------- */
-  const scrim = $("#scrim"), awardsEl = $("#awardsPanel"), dataEl = $("#dataPanel"), viewer = $("#viewer");
+  const scrim = $("#scrim"), awardsEl = $("#awardsPanel"), dataEl = $("#dataPanel"), tourEl = $("#tourPanel"), viewer = $("#viewer");
   let openEl = null, pushed = false, ignorePop = 0;
   const anyOverlay = () => !viewer.hidden || !!openEl || detCtl.state !== "closed";
   function pushNav() { if (!pushed) { try { history.pushState({ hwn: 1 }, ""); pushed = true; } catch (e) {} } }
@@ -1133,7 +1204,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     if (!viewer.hidden) closeViewer(); else if (openEl) closePanel(); else if (detCtl.state !== "closed") detCtl.set("closed");
   });
   /* Abzeichen & Daten: am Griff ziehen oder – wenn ganz oben gescrollt – überall in der Ansicht runterziehen */
-  for (const el of [awardsEl, dataEl]) {
+  for (const el of [awardsEl, dataEl, tourEl]) {
     const head = el.querySelector(".p-head"), body = el.querySelector(".p-body");
     let d = null;
     const begin = (y) => { d = { y0: y, dy: 0, v: 0, lastY: y, lastT: performance.now() }; el.classList.add("drag"); };
@@ -1232,6 +1303,10 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     const r = routeFor(nr), ra = $("#dRoute");
     ra.hidden = !r;
     if (r) { ra.href = r.href; $("#dRouteLbl").textContent = r.label; }
+    const dTour = $("#dTour"), inT = tour.nrs.includes(nr);
+    dTour.hidden = !p;
+    dTour.setAttribute("aria-pressed", inT);
+    $("#dTourLbl").textContent = inT ? "In der Tour" : "Zur Tour";
     $("#dSrc").textContent = !p ? "Für diese Stelle ist noch keine Position bekannt." :
       "Position: " + (p.src === "gpx" ? "offizielle GPS-Daten" : "OpenStreetMap") + (komootFor(nr) ? " · Route über komoot-Highlight" : "");
     paintMoreSummary();
@@ -1421,6 +1496,190 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     if (pc) parts.push(pc === 1 ? "1 Foto" : `${pc} Fotos`);
     $("#dMoreSum").textContent = parts.length ? parts.join(" · ") : "Hochwischen oder hier tippen";
   }
+
+  /* ---------- Tour: Stempel sammeln, Reihenfolge optimieren, Route berechnen, GPX für komoot ---------- */
+  const tourBtn = $("#tourBtn"), tList = $("#tList"), tSum = $("#tSum");
+  const ROUTE_COLOR = "#1E5BD8";
+  let routeLayer = null, routeRes = null, routing = false;
+  function saveTour() { LS.set(K.tour, { nrs: tour.nrs, round: tour.round, fromMe: tour.fromMe }); }
+  function invalidateRoute() { routeRes = null; if (routeLayer) { routeLayer.remove(); routeLayer = null; } }
+  function toggleTour(nr) {
+    const i = tour.nrs.indexOf(nr), adding = i < 0;
+    if (adding) tour.nrs.push(nr); else tour.nrs.splice(i, 1);
+    saveTour(); invalidateRoute(); refreshMarker(nr); paintTour();
+    if (detailNr === nr) paintDetail();
+    toast(adding ? `Nr. ${nr} zur Tour hinzugefügt (${tour.nrs.length})` : `Nr. ${nr} aus der Tour entfernt`,
+      { label: "Rückgängig", fn: () => { if (adding) tour.nrs = tour.nrs.filter((n) => n !== nr); else tour.nrs.splice(i, 0, nr); saveTour(); invalidateRoute(); refreshMarker(nr); paintTour(); if (detailNr === nr) paintDetail(); } });
+  }
+  $("#dTour").addEventListener("click", () => { if (detailNr) toggleTour(detailNr); });
+  const kmTxt = (km) => km < 10 ? km.toFixed(1).replace(".", ",") + " km" : Math.round(km) + " km";
+  const durTxt = (min) => { const h = Math.floor(min / 60), m = Math.round(min % 60 / 5) * 5; return h ? `${h} h ${m ? m + " min" : ""}`.trim() : `${m} min`; };
+  function paintTour() {
+    const n = tour.nrs.length;
+    tourBtn.hidden = !n;
+    $("#tourBtnLbl").textContent = `Tour · ${n} ${n === 1 ? "Stempel" : "Stempel"}` + (routeRes ? ` · ${kmTxt(routeRes.km)}` : "");
+    $("#tTitle").textContent = n ? `Tour mit ${n} Stempel${n === 1 ? "" : "n"}` : "Tour";
+    $("#tRound").setAttribute("aria-pressed", tour.round);
+    $("#tFromMe").setAttribute("aria-pressed", tour.fromMe);
+    $("#tEmpty").hidden = !!n;
+    tList.textContent = "";
+    tour.nrs.forEach((nr, i) => {
+      const s = byNr.get(nr), li = document.createElement("li");
+      li.className = collected[nr] ? "done" : "";
+      li.innerHTML = `<span class="step">${i + 1}.</span><span class="badge">${nr}</span><span class="tt"><b></b><small></small></span><button type="button" class="del" aria-label="Aus der Tour entfernen">${ICON_X}</button>`;
+      li.querySelector("b").textContent = s.name;
+      li.querySelector("small").textContent = s.ort + (posOf(nr) ? "" : " · keine Position");
+      li.querySelector(".del").addEventListener("click", () => toggleTour(nr));
+      tList.appendChild(li);
+    });
+    tSum.hidden = !routeRes;
+    if (routeRes) {
+      const r = routeRes;
+      tSum.innerHTML = "";
+      const b = document.createElement("b");
+      b.textContent = kmTxt(r.km) + (r.up != null ? ` · ↑ ${Math.round(r.up)} m ↓ ${Math.round(r.down)} m` : "");
+      const sm = document.createElement("small");
+      sm.textContent = `ca. ${durTxt(r.min)} Gehzeit · ${tour.round ? "Rundtour" : "Strecke"}${tour.fromMe ? " ab Standort" : ""} · berechnet mit ${r.src}`;
+      tSum.append(b, sm);
+    }
+    const minPts = tour.fromMe ? 1 : 2;
+    $("#tCalc").disabled = n < minPts;
+    $("#tCalcLbl").textContent = routing ? "Berechne Route …" : (routeRes ? "Neu berechnen" : "Route berechnen");
+    $("#tCalc").classList.toggle("busy", routing);
+    $("#tGpx").disabled = !routeRes;
+    $("#tClear").disabled = !n;
+  }
+  tourBtn.addEventListener("click", () => { paintTour(); openPanel(tourEl); });
+  $("#tRound").addEventListener("click", () => { tour.round = !tour.round; saveTour(); invalidateRoute(); paintTour(); });
+  $("#tFromMe").addEventListener("click", () => {
+    tour.fromMe = !tour.fromMe; saveTour(); invalidateRoute(); paintTour();
+    if (tour.fromMe && !me) { toast("Suche deinen Standort …"); startLocate(false); }
+  });
+  $("#tClear").addEventListener("click", () => {
+    const before = tour.nrs.slice();
+    tour.nrs = []; saveTour(); invalidateRoute(); before.forEach((nr) => refreshMarker(nr)); paintTour(); closePanel();
+    toast("Tour geleert", { label: "Rückgängig", fn: () => { tour.nrs = before; saveTour(); before.forEach((nr) => refreshMarker(nr)); paintTour(); } });
+  });
+
+  /* Reihenfolge: nächster Nachbar + 2-opt auf Luftlinie (reicht für eine Tagestour gut) */
+  function optimize(pts, start, round) {
+    const all = start ? [start, ...pts] : pts.slice();
+    const n = all.length; if (n < 3) return pts.slice();
+    const D = all.map((a) => all.map((b) => hav(a, b)));
+    const len = (r) => { let s = 0; for (let i = 0; i < r.length - 1; i++) s += D[r[i]][r[i + 1]]; return round ? s + D[r[r.length - 1]][r[0]] : s; };
+    const nn = (first) => { const r = [first], left = new Set(all.map((_, i) => i)); left.delete(first);
+      while (left.size) { const last = r[r.length - 1]; let best = null; for (const j of left) if (best === null || D[last][j] < D[last][best]) best = j; r.push(best); left.delete(best); } return r; };
+    const twoOpt = (r, fixFirst) => {
+      let improved = true, cur = len(r);
+      while (improved) {
+        improved = false;
+        for (let i = fixFirst ? 1 : 0; i < r.length - 1; i++) for (let k = i + 1; k < r.length; k++) {
+          const c = r.slice(0, i).concat(r.slice(i, k + 1).reverse(), r.slice(k + 1)), l = len(c);
+          if (l + 1e-9 < cur) { r = c; cur = l; improved = true; }
+        }
+      }
+      return r;
+    };
+    let best;
+    if (start) best = twoOpt(nn(0), true);
+    else { best = null; for (let s = 0; s < n; s++) { const r = twoOpt(nn(s), round); if (!best || len(r) < len(best)) best = r; } }
+    if (start) best = best.slice(1).map((i) => i - 1); // Start wieder entfernen
+    return best.map((i) => pts[i]);
+  }
+  const waitForMe = (ms) => new Promise((res) => {
+    if (me) return res(true);
+    const h = () => { clearTimeout(t); res(true); };
+    const t = setTimeout(() => { map.off("locationfound", h); res(!!me); }, ms);
+    map.once("locationfound", h);
+  });
+  async function fetchJson(url, ms) {
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), ms);
+    try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); }
+    finally { clearTimeout(tm); }
+  }
+  async function viaBRouter(seq) {
+    const ll = seq.map((p) => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join("|");
+    const j = await fetchJson(`https://brouter.de/brouter?lonlats=${ll}&profile=hiking-mountain&alternativeidx=0&format=geojson`, 45000);
+    const c = j.features[0].geometry.coordinates;
+    return { coords: c.map((x) => [x[1], x[0], x.length > 2 ? +x[2] : null]), src: "BRouter" };
+  }
+  async function viaOsrm(seq) {
+    const ll = seq.map((p) => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(";");
+    const j = await fetchJson(`https://routing.openstreetmap.de/routed-foot/route/v1/foot/${ll}?overview=full&geometries=geojson`, 30000);
+    if (j.code !== "Ok") throw new Error(j.code);
+    return { coords: j.routes[0].geometry.coordinates.map((x) => [x[1], x[0], null]), src: "OSRM (ohne Höhenmeter)" };
+  }
+  function routeStats(coords) {
+    let m = 0, up = 0, down = 0, base = null;
+    const hasEle = coords.some((c) => c[2] != null);
+    for (let i = 0; i < coords.length; i++) {
+      if (i) m += hav({ lat: coords[i - 1][0], lon: coords[i - 1][1] }, { lat: coords[i][0], lon: coords[i][1] }) * 1000;
+      const e = coords[i][2]; if (e == null) continue;
+      if (base == null) base = e;
+      const d = e - base;
+      if (d >= 5) { up += d; base = e; } else if (d <= -5) { down -= d; base = e; }
+    }
+    const km = m / 1000, hH = km / 4, hV = hasEle ? up / 300 + down / 500 : 0;
+    return { km, up: hasEle ? up : null, down: hasEle ? down : null, min: (Math.max(hH, hV) + Math.min(hH, hV) / 2) * 60 };
+  }
+  $("#tCalc").addEventListener("click", async () => {
+    if (routing) return;
+    const pts = tour.nrs.map((nr) => { const p = posOf(nr); return p ? { nr, lat: p.lat, lon: p.lon } : null; }).filter(Boolean);
+    let start = null;
+    if (tour.fromMe) {
+      if (!me) { toast("Suche deinen Standort …"); startLocate(false); await waitForMe(15000); }
+      if (!me) { toast("Standort nicht verfügbar – „Start am Standort“ ausschalten oder Freigabe erlauben."); return; }
+      start = { nr: 0, lat: me.lat, lon: me.lng };
+    }
+    if (pts.length + (start ? 1 : 0) < 2) { toast("Für eine Route mindestens zwei Punkte auswählen."); return; }
+    const ordered = optimize(pts, start, tour.round);
+    tour.nrs = ordered.map((p) => p.nr).concat(tour.nrs.filter((nr) => !posOf(nr)));
+    saveTour();
+    const seq = (start ? [start] : []).concat(ordered);
+    if (tour.round) seq.push(seq[0]);
+    routing = true; invalidateRoute(); paintTour();
+    let res = null;
+    try { res = await viaBRouter(seq); } catch (e) { try { res = await viaOsrm(seq); } catch (e2) { res = null; } }
+    routing = false;
+    if (!res || res.coords.length < 2) { paintTour(); toast("Route konnte gerade nicht berechnet werden. Bitte später erneut versuchen."); return; }
+    routeRes = Object.assign(res, routeStats(res.coords), { order: tour.nrs.slice(), start: start ? [start.lat, start.lon] : null, round: tour.round });
+    const ll = res.coords.map((c) => [c[0], c[1]]);
+    routeLayer = L.layerGroup([
+      L.polyline(ll, { color: "#FFFFFF", weight: 9, opacity: .9, interactive: false }),
+      L.polyline(ll, { color: ROUTE_COLOR, weight: 5, opacity: .95, interactive: false })
+    ]).addTo(map);
+    tour.nrs.forEach((nr) => refreshMarker(nr));
+    paintTour(); closePanel(); listCtl.set("peek");
+    const top = topbar.getBoundingClientRect().bottom + 16;
+    map.fitBounds(L.latLngBounds(ll), { paddingTopLeft: [24, top], paddingBottomRight: [24, peekPx + 80] });
+    toast(`Route: ${kmTxt(routeRes.km)}` + (routeRes.up != null ? ` · ↑ ${Math.round(routeRes.up)} m` : "") + ` · ca. ${durTxt(routeRes.min)}`);
+  });
+  const xmlEsc = (t) => String(t).replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c]);
+  function buildGpx(r) {
+    const title = "Stempeltour " + r.order.map((n) => pad(n)).join("–");
+    const wpts = r.order.filter((nr) => posOf(nr)).map((nr) => {
+      const p = posOf(nr), s = byNr.get(nr);
+      return `  <wpt lat="${p.lat.toFixed(6)}" lon="${p.lon.toFixed(6)}"><name>${xmlEsc(`HWN ${pad(nr)} ${s.name}`)}</name><desc>${xmlEsc(s.ort)}</desc></wpt>`;
+    }).join("\n");
+    const trk = r.coords.map((c) => `      <trkpt lat="${c[0].toFixed(6)}" lon="${c[1].toFixed(6)}">${c[2] != null ? `<ele>${(+c[2]).toFixed(1)}</ele>` : ""}</trkpt>`).join("\n");
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Harzer Stempelkarte" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>${xmlEsc(title)}</name><time>${new Date().toISOString()}</time></metadata>
+${wpts}
+  <trk>
+    <name>${xmlEsc(title)}</name>
+    <trkseg>
+${trk}
+    </trkseg>
+  </trk>
+</gpx>
+`;
+  }
+  $("#tGpx").addEventListener("click", async () => {
+    if (!routeRes) return;
+    const name = `stempeltour-${routeRes.order.slice(0, 6).join("-")}.gpx`;
+    await share(new Blob([buildGpx(routeRes)], { type: "application/gpx+xml" }), name, "application/gpx+xml");
+  });
 
   /* ---------- Stempel setzen ---------- */
   function save() { if (!LS.set(K.done, collected)) toast("Speichern nicht möglich. Bitte eine Sicherung erstellen."); }
@@ -1693,7 +1952,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   async function share(blob, name, type) {
     try {
       const file = new File([blob], name, { type });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "Stempelkarte – Sicherung" }); return; }
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
     } catch (err) { if (err && err.name === "AbortError") return; }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = name;
@@ -1767,7 +2026,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
 
   /* ---------- Start ---------- */
   $("#ver").textContent = "v" + APP_VERSION;
-  renderMarkers(); updateAllRows(); updateProgress(); applyFilter(); updateStatus();
+  renderMarkers(); updateAllRows(); updateProgress(); applyFilter(); updateStatus(); paintTour();
   layoutAll();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutAll);
   ensurePositions();
