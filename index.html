@@ -148,8 +148,13 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
 }
 .tourbtn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .via { background: none; border: 0; }
-.via-in { width: 100%; height: 100%; display: grid; place-items: center; }
-.via-in i { width: 16px; height: 16px; border-radius: 3px; transform: rotate(45deg); background: #FFFFFF; border: 3px solid #1E5BD8; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
+.via-in { position: relative; width: 100%; height: 100%; display: grid; place-items: center; }
+.via-in i { position: absolute; left: 50%; top: 50%; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 4px; transform: rotate(45deg); background: #FFFFFF; border: 3px solid #1E5BD8; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); box-sizing: border-box; }
+.via-in b { position: relative; font: 700 13px/1 var(--f-display); color: #1E5BD8; font-variant-numeric: tabular-nums; }
+.z-low .via-in i { width: 18px; height: 18px; margin: -9px 0 0 -9px; border-width: 2.5px; }
+.z-low .via-in b { font-size: 10px; }
+.rarrow { background: none; border: 0; pointer-events: none; }
+.rarrow svg { width: 18px; height: 18px; display: block; overflow: visible; }
 .viabar {
   position: fixed; z-index: 950; top: calc(env(safe-area-inset-top, 0px) + 70px);
   left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
@@ -363,16 +368,24 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
 .hint a { color: var(--brand); font-weight: 600; }
 .topts { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
 .tlist { list-style: none; margin: 0 0 14px; padding: 0; counter-reset: t; }
-.tlist li { display: flex; align-items: center; gap: 12px; min-height: 60px; border-bottom: 1px solid var(--line); }
+.tlist li { display: flex; align-items: center; gap: 8px; min-height: 60px; border-bottom: 1px solid var(--line); }
 .tlist li:last-child { border-bottom: 0; }
-.tlist .step { flex: none; width: 24px; color: var(--muted); font: 700 .9rem/1 var(--f-display); text-align: right; font-variant-numeric: tabular-nums; }
+.tlist .step { flex: none; width: 20px; color: var(--muted); font: 700 .9rem/1 var(--f-display); text-align: right; font-variant-numeric: tabular-nums; }
 .tlist .badge { width: 38px; height: 38px; font-size: .92rem; }
 .tlist .tt { flex: 1; min-width: 0; display: grid; }
 .tlist .tt b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tlist .tt small { color: var(--muted); font-size: .84rem; }
 .tlist li.done .badge { background: var(--ink); border-color: var(--ink); color: var(--ink-fg); }
 .tlist .vbadge { flex: none; width: 38px; height: 38px; display: grid; place-items: center; }
-.tlist .vbadge i { width: 16px; height: 16px; border-radius: 3px; transform: rotate(45deg); border: 3px solid #1E5BD8; background: var(--surface); }
+.tlist .vbadge { position: relative; }
+.tlist .vbadge i { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 4px; transform: rotate(45deg); border: 3px solid #1E5BD8; background: var(--surface); box-sizing: border-box; }
+.tlist .vbadge b { position: relative; font: 700 .85rem/1 var(--f-display); color: #1E5BD8; }
+.tlist .mv { flex: none; display: flex; }
+.tlist .mv button { width: 36px; height: 44px; border: 0; padding: 0; border-radius: 10px; background: none; color: var(--muted); display: grid; place-items: center; }
+.tlist .mv button:disabled { opacity: .2; }
+.tlist .mv button:active { background: var(--surface-2); }
+.tlist .mv .i, .tlist .del .i { width: 19px; height: 19px; }
+.tlist .del { width: 36px; }
 .tsum .stale { color: var(--warn); }
 .tempty { margin: 6px 0 16px; color: var(--muted); }
 .tsum { margin: 0 0 14px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); display: grid; gap: 4px; }
@@ -541,6 +554,7 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
     <ol class="tlist" id="tList"></ol>
     <div class="stack">
       <button class="btn primary" id="tCalc" type="button"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg><span id="tCalcLbl">Route berechnen</span></button>
+      <button class="btn" id="tAuto" type="button" hidden><svg class="i" viewBox="0 0 24 24"><path d="M4 7h11M4 12h8M4 17h5M17 4v16M14 17l3 3 3-3"/></svg>Reihenfolge automatisch optimieren</button>
       <button class="btn" id="tVia" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 3 21 12 12 21 3 12Z"/></svg>Wegpunkte setzen</button>
       <button class="btn" id="tGpxKey" type="button" disabled><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>GPX für komoot – Wegpunkte</button>
       <button class="btn" id="tGpxFull" type="button" disabled><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>GPX – genaue Strecke</button>
@@ -548,7 +562,7 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
     </div>
     <p class="hint"><b>Wegpunkte:</b> Die Datei enthält nur Start, Stempel und deine Wegpunkte. komoot legt die Strecke dazwischen selbst auf seine Wege. Mit zusätzlichen Wegpunkten bestimmst du, wo es langgeht.</p>
     <p class="hint"><b>Genaue Strecke:</b> die hier berechnete Route. Beim Import in komoot „Der Originalroute folgen“ wählen, dann übernimmt komoot den Verlauf, statt ihn anzupassen.</p>
-    <p class="hint">Import in komoot: Datei teilen → komoot, oder in komoot unter Profil → Geplant → Importieren. Die Stempel-Reihenfolge wird beim Berechnen automatisch optimiert.</p>
+    <p class="hint">Import in komoot: Datei teilen → komoot, oder in komoot unter Profil → Geplant → Importieren. Die Reihenfolge wird automatisch optimiert. Mit ▲ / ▼ kannst du sie selbst ändern, dann bleibt deine Reihenfolge erhalten.</p>
     <p class="hint">Routing: <a href="https://brouter.de" target="_blank" rel="noopener">BRouter</a> (Wanderprofil), Daten © OpenStreetMap-Mitwirkende.</p>
   </div>
 </section>
@@ -912,7 +926,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
 <script>
 (() => {
   /* Version unten unter „Daten & Sicherung“: 1.x.y – x = größere Updates (z. B. Routen), y = kleine Fixes/Anpassungen */
-  const APP_VERSION = "1.2.0-beta.2";
+  const APP_VERSION = "1.2.0-beta.3";
 
   /* ---------- Speicher (alte Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
   const LS = {
@@ -928,7 +942,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   /* Tour: Folge aus Stempeln { nr } und eigenen Wegpunkten { id, lat, lon } */
   const tourRaw = LS.get(K.tour, {}) || {};
   const tour = {
-    round: tourRaw.round !== false, fromMe: !!tourRaw.fromMe, dirty: tourRaw.dirty !== false,
+    round: tourRaw.round !== false, fromMe: !!tourRaw.fromMe, dirty: tourRaw.dirty !== false, manual: !!tourRaw.manual,
     seq: Array.isArray(tourRaw.seq)
       ? tourRaw.seq.filter((it) => it && (validNr(it.nr) || (it.id && isFinite(it.lat) && isFinite(it.lon))))
       : (tourRaw.nrs || []).filter((n) => validNr(n)).map((nr) => ({ nr }))
@@ -1541,8 +1555,8 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   const ptOf = (it) => it.nr ? posOf(it.nr) : { lat: it.lat, lon: it.lon };
   const startPoint = () => tour.fromMe && me ? { lat: me.lat, lon: me.lng } : null;
   const keyCount = () => tour.seq.filter((it) => ptOf(it)).length + (tour.fromMe ? 1 : 0);
-  function saveTour() { LS.set(K.tour, { seq: tour.seq, round: tour.round, fromMe: tour.fromMe, dirty: tour.dirty }); }
-  function clearRoute() { routeRes = null; if (routeLayer) { routeLayer.remove(); routeLayer = null; } }
+  function saveTour() { LS.set(K.tour, { seq: tour.seq, round: tour.round, fromMe: tour.fromMe, dirty: tour.dirty, manual: tour.manual }); }
+  function clearRoute() { routeRes = null; if (routeLayer) { routeLayer.remove(); routeLayer = null; } arrowLayer.clearLayers(); }
   function scheduleRecalc() {
     clearTimeout(recalcT);
     if (keyCount() < 2) { clearRoute(); paintTour(); return; }
@@ -1557,13 +1571,14 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   }
   function toggleTour(nr) {
     const i = tour.seq.findIndex((it) => it.nr === nr), adding = i < 0, removed = adding ? null : tour.seq[i];
-    if (adding) tour.seq.push({ nr }); else tour.seq.splice(i, 1);
-    refreshMarker(nr); tourChanged({ reorder: true });
+    if (adding) { if (tour.manual && posOf(nr)) insertCheapest({ nr }, startPoint()); else tour.seq.push({ nr }); }
+    else tour.seq.splice(i, 1);
+    refreshMarker(nr); tourChanged({ reorder: !tour.manual });
     if (detailNr === nr) paintDetail();
     toast(adding ? `Nr. ${nr} zur Tour hinzugefügt (${tourStamps().length})` : `Nr. ${nr} aus der Tour entfernt`, {
       label: "Rückgängig", fn: () => {
         if (adding) tour.seq = tour.seq.filter((it) => it.nr !== nr); else tour.seq.splice(i, 0, removed);
-        refreshMarker(nr); tourChanged({ reorder: true }); if (detailNr === nr) paintDetail();
+        refreshMarker(nr); tourChanged({ reorder: !tour.manual }); if (detailNr === nr) paintDetail();
       }
     });
   }
@@ -1594,19 +1609,22 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     tourChanged();
     toast("Wegpunkt gelöscht", { label: "Rückgängig", fn: () => { tour.seq.splice(i, 0, v); tourChanged(); } });
   }
-  const viaIcon = L.divIcon({ className: "via", html: '<div class="via-in"><i></i></div>', iconSize: [36, 36], iconAnchor: [18, 18] });
+  const viaIcon = (n) => L.divIcon({ className: "via", html: `<div class="via-in"><i></i><b>${n}</b></div>`, iconSize: [38, 38], iconAnchor: [19, 19] });
   function renderVias() {
-    const ids = new Set(tourVias().map((v) => v.id));
+    const vias = tourVias(), ids = new Set(vias.map((v) => v.id));
     for (const [id, m] of viaMarkers) if (!ids.has(id)) { m.remove(); viaMarkers.delete(id); }
-    for (const v of tourVias()) {
+    vias.forEach((v, i) => {
       let m = viaMarkers.get(v.id);
       if (!m) {
-        m = L.marker([v.lat, v.lon], { icon: viaIcon, draggable: true, autoPan: true, zIndexOffset: 1500, title: "Wegpunkt" });
+        m = L.marker([v.lat, v.lon], { icon: viaIcon(i + 1), draggable: true, autoPan: true, zIndexOffset: 1500, title: `Wegpunkt ${i + 1}` });
         m.on("dragend", () => { const ll = m.getLatLng(), it = tour.seq.find((x) => x.id === v.id); if (it) { it.lat = +ll.lat.toFixed(6); it.lon = +ll.lng.toFixed(6); tourChanged(); } });
         m.on("click", () => removeVia(v.id));
-        m.addTo(map); viaMarkers.set(v.id, m);
-      } else m.setLatLng([v.lat, v.lon]);
-    }
+        m.addTo(map); viaMarkers.set(v.id, m); m._no = i + 1;
+      } else {
+        m.setLatLng([v.lat, v.lon]);
+        if (m._no !== i + 1) { m.setIcon(viaIcon(i + 1)); m._no = i + 1; }
+      }
+    });
   }
   /* Wegpunkte nur bei genügend Zoom setzen – sonst trifft man ungewollt Stempel und setzt Punkte ungenau */
   function viaZoomOk() {
@@ -1637,24 +1655,29 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     $("#tFromMe").setAttribute("aria-pressed", tour.fromMe);
     $("#tEmpty").hidden = !!(nS || nV);
     tList.textContent = "";
-    let step = 0, viaNo = 0;
-    tour.seq.forEach((it) => {
+    let viaNo = 0;
+    const MV = `<span class="mv"><button type="button" class="up" aria-label="Nach oben"><svg class="i" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button><button type="button" class="dn" aria-label="Nach unten"><svg class="i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></span>`;
+    tour.seq.forEach((it, idx) => {
       const li = document.createElement("li");
-      step++;
       if (it.nr) {
         const s = byNr.get(it.nr);
         li.className = collected[it.nr] ? "done" : "";
-        li.innerHTML = `<span class="step">${step}.</span><span class="badge">${it.nr}</span><span class="tt"><b></b><small></small></span><button type="button" class="del" aria-label="Aus der Tour entfernen">${ICON_X}</button>`;
+        li.innerHTML = `<span class="step">${idx + 1}.</span><span class="badge">${it.nr}</span><span class="tt"><b></b><small></small></span>${MV}<button type="button" class="del" aria-label="Aus der Tour entfernen">${ICON_X}</button>`;
         li.querySelector("b").textContent = s.name;
         li.querySelector("small").textContent = s.ort + (posOf(it.nr) ? "" : " · keine Position");
         li.querySelector(".del").addEventListener("click", () => toggleTour(it.nr));
       } else {
         viaNo++;
-        li.innerHTML = `<span class="step">${step}.</span><span class="vbadge"><i></i></span><span class="tt"><b>Wegpunkt ${viaNo}</b><small>eigener Zwischenpunkt</small></span><button type="button" class="del" aria-label="Wegpunkt löschen">${ICON_X}</button>`;
+        li.innerHTML = `<span class="step">${idx + 1}.</span><span class="vbadge"><i></i><b>${viaNo}</b></span><span class="tt"><b>Wegpunkt ${viaNo}</b><small>eigener Zwischenpunkt</small></span>${MV}<button type="button" class="del" aria-label="Wegpunkt löschen">${ICON_X}</button>`;
         li.querySelector(".del").addEventListener("click", () => removeVia(it.id));
       }
+      const up = li.querySelector(".up"), dn = li.querySelector(".dn");
+      up.disabled = idx === 0; dn.disabled = idx === tour.seq.length - 1;
+      up.addEventListener("click", () => moveItem(idx, -1));
+      dn.addEventListener("click", () => moveItem(idx, 1));
       tList.appendChild(li);
     });
+    $("#tAuto").hidden = !tour.manual || tour.seq.length < 3;
     tSum.hidden = !routeRes;
     if (routeRes) {
       const r = routeRes;
@@ -1675,14 +1698,52 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     $("#tClear").disabled = !nS && !nV;
   }
   tourBtn.addEventListener("click", () => { paintTour(); openPanel(tourEl); });
-  $("#tRound").addEventListener("click", () => { tour.round = !tour.round; tourChanged({ reorder: true }); });
+  /* eigene Reihenfolge: bleibt erhalten, bis „automatisch optimieren“ gewählt wird */
+  function moveItem(i, d) {
+    const j = i + d; if (j < 0 || j >= tour.seq.length) return;
+    [tour.seq[i], tour.seq[j]] = [tour.seq[j], tour.seq[i]];
+    tour.manual = true; tour.dirty = false;
+    tourChanged();
+    try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
+  }
+  $("#tAuto").addEventListener("click", () => {
+    tour.manual = false; tour.dirty = true;
+    if (!routeRes) reorderTour(startPoint());
+    tourChanged({ reorder: true });
+    toast("Reihenfolge wird automatisch optimiert");
+  });
+
+  /* Richtungspfeile entlang der Route – alle ~110 px, nur im sichtbaren Bereich */
+  const arrowLayer = L.layerGroup().addTo(map);
+  const arrowIcon = (deg) => L.divIcon({ className: "rarrow", iconSize: [18, 18], iconAnchor: [9, 9],
+    html: `<svg viewBox="0 0 16 16" style="transform:rotate(${deg.toFixed(1)}deg)"><path d="M5 2.5l6 5.5-6 5.5" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>` });
+  function drawArrows() {
+    arrowLayer.clearLayers();
+    if (!routeRes) return;
+    const view = map.getBounds().pad(0.15), SP = 110;
+    const pts = routeRes.coords.map((c) => map.latLngToLayerPoint([c[0], c[1]]));
+    let next = SP / 2, acc = 0, count = 0;
+    for (let i = 1; i < pts.length && count < 400; i++) {
+      const a = pts[i - 1], b = pts[i], seg = a.distanceTo(b);
+      if (!seg) continue;
+      while (acc + seg >= next) {
+        const t = (next - acc) / seg, p = L.point(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t), ll = map.layerPointToLatLng(p);
+        if (view.contains(ll)) { L.marker(ll, { icon: arrowIcon(Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI), interactive: false, keyboard: false, zIndexOffset: -1000 }).addTo(arrowLayer); count++; }
+        next += SP;
+      }
+      acc += seg;
+    }
+  }
+  let arrowT = null;
+  map.on("zoomend moveend", () => { clearTimeout(arrowT); arrowT = setTimeout(drawArrows, 80); });
+  $("#tRound").addEventListener("click", () => { tour.round = !tour.round; tourChanged({ reorder: !tour.manual }); });
   $("#tFromMe").addEventListener("click", () => {
-    tour.fromMe = !tour.fromMe; tourChanged({ reorder: true });
+    tour.fromMe = !tour.fromMe; tourChanged({ reorder: !tour.manual });
     if (tour.fromMe && !me) { toast("Suche deinen Standort …"); startLocate(false); }
   });
   $("#tClear").addEventListener("click", () => {
     const before = tour.seq.slice(), nrs = tourStamps();
-    tour.seq = []; tour.dirty = true; clearRoute(); saveTour(); renderVias(); nrs.forEach((nr) => refreshMarker(nr)); paintTour(); closePanel();
+    tour.seq = []; tour.dirty = true; tour.manual = false; clearRoute(); saveTour(); renderVias(); nrs.forEach((nr) => refreshMarker(nr)); paintTour(); closePanel();
     toast("Tour geleert", { label: "Rückgängig", fn: () => { tour.seq = before; saveTour(); renderVias(); nrs.forEach((nr) => refreshMarker(nr)); paintTour(); } });
   });
 
@@ -1764,7 +1825,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
       start = { lat: me.lat, lon: me.lng };
     }
     if (keyCount() < 2) { if (!quiet) toast("Für eine Route mindestens zwei Punkte auswählen."); return false; }
-    if (tour.dirty) reorderTour(start);
+    if (tour.dirty && !tour.manual) reorderTour(start);
     const keys = (start ? [start] : []).concat(tour.seq.map(ptOf).filter(Boolean));
     if (tour.round) keys.push(keys[0]);
     routing = true; paintTour();
@@ -1783,7 +1844,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
       L.polyline(ll, { color: "#FFFFFF", weight: 9, opacity: .9, interactive: false }),
       L.polyline(ll, { color: ROUTE_COLOR, weight: 5, opacity: .95, interactive: false })
     ]).addTo(map);
-    renderVias(); paintTour();
+    drawArrows(); renderVias(); paintTour();
     if (pendingRecalc) { pendingRecalc = false; scheduleRecalc(); }
     return true;
   }
