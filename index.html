@@ -453,7 +453,7 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
 <section class="panel" id="awardsPanel" aria-label="Abzeichen">
   <div class="p-head">
     <span class="grab" aria-hidden="true"></span>
-    <div class="p-top"><h2 class="p-title">Abzeichen</h2><button class="x" type="button" data-close aria-label="Schließen"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="p-top"><h2 class="p-title">Abzeichen</h2></div>
   </div>
   <div class="p-body"><ul class="aw-list" id="awList"></ul></div>
 </section>
@@ -461,7 +461,7 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
 <section class="panel" id="dataPanel" aria-label="Daten und Sicherung">
   <div class="p-head">
     <span class="grab" aria-hidden="true"></span>
-    <div class="p-top"><h2 class="p-title">Daten &amp; Sicherung</h2><button class="x" type="button" data-close aria-label="Schließen"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="p-top"><h2 class="p-title">Daten &amp; Sicherung</h2></div>
   </div>
   <div class="p-body">
     <p class="status" id="status">Lade Positionen …</p>
@@ -816,8 +816,8 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
 
 <script>
 (() => {
-  /* Bei jeder Änderung an der Seite hochzählen – steht unten unter „Daten & Sicherung“ */
-  const APP_VERSION = "1.1.1";
+  /* Version unten unter „Daten & Sicherung“: 1.x.y – x = größere Updates (z. B. Routen), y = kleine Fixes/Anpassungen */
+  const APP_VERSION = "1.1.7";
 
   /* ---------- Speicher (alte Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
   const LS = {
