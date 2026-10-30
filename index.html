@@ -385,6 +385,11 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
 .tlist .mv button:disabled { opacity: .2; }
 .tlist .mv button:active { background: var(--surface-2); }
 .tlist .mv .i, .tlist .del .i { width: 19px; height: 19px; }
+.grip { flex: none; width: 36px; height: 52px; margin-left: -8px; display: grid; place-items: center; color: var(--muted); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.grip svg { width: 12px; height: 20px; fill: currentColor; }
+.tlist.sorting li { transition: transform .16s ease; }
+.tlist li.dragging { position: relative; z-index: 3; transition: none !important; background: var(--surface); border-radius: 12px; box-shadow: 0 8px 24px rgba(16, 32, 22, .22); }
+.tlist li.dragging .grip { color: var(--brand); cursor: grabbing; }
 .tlist .del { width: 36px; }
 .tsum .stale { color: var(--warn); }
 .tempty { margin: 6px 0 16px; color: var(--muted); }
@@ -554,15 +559,11 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
     <ol class="tlist" id="tList"></ol>
     <div class="stack">
       <button class="btn primary" id="tCalc" type="button"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg><span id="tCalcLbl">Route berechnen</span></button>
-      <button class="btn" id="tAuto" type="button" hidden><svg class="i" viewBox="0 0 24 24"><path d="M4 7h11M4 12h8M4 17h5M17 4v16M14 17l3 3 3-3"/></svg>Reihenfolge automatisch optimieren</button>
       <button class="btn" id="tVia" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 3 21 12 12 21 3 12Z"/></svg>Wegpunkte setzen</button>
-      <button class="btn" id="tGpxKey" type="button" disabled><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>GPX für komoot – Wegpunkte</button>
-      <button class="btn" id="tGpxFull" type="button" disabled><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>GPX – genaue Strecke</button>
+      <button class="btn" id="tGpxFull" type="button" disabled><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>GPX für komoot</button>
       <button class="btn" id="tClear" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Tour leeren</button>
     </div>
-    <p class="hint"><b>Wegpunkte:</b> Die Datei enthält nur Start, Stempel und deine Wegpunkte. komoot legt die Strecke dazwischen selbst auf seine Wege. Mit zusätzlichen Wegpunkten bestimmst du, wo es langgeht.</p>
-    <p class="hint"><b>Genaue Strecke:</b> die hier berechnete Route. Beim Import in komoot „Der Originalroute folgen“ wählen, dann übernimmt komoot den Verlauf, statt ihn anzupassen.</p>
-    <p class="hint">Import in komoot: Datei teilen → komoot, oder in komoot unter Profil → Geplant → Importieren. Die Reihenfolge wird automatisch optimiert. Mit ▲ / ▼ kannst du sie selbst ändern, dann bleibt deine Reihenfolge erhalten.</p>
+    <p class="hint">Reihenfolge ändern: einen Punkt am Griff links festhalten und an die gewünschte Stelle ziehen.</p>
     <p class="hint">Routing: <a href="https://brouter.de" target="_blank" rel="noopener">BRouter</a> (Wanderprofil), Daten © OpenStreetMap-Mitwirkende.</p>
   </div>
 </section>
@@ -926,7 +927,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
 <script>
 (() => {
   /* Version unten unter „Daten & Sicherung“: 1.x.y – x = größere Updates (z. B. Routen), y = kleine Fixes/Anpassungen */
-  const APP_VERSION = "1.2.0-beta.3";
+  const APP_VERSION = "1.2.0-beta.4";
 
   /* ---------- Speicher (alte Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
   const LS = {
@@ -947,6 +948,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
       ? tourRaw.seq.filter((it) => it && (validNr(it.nr) || (it.id && isFinite(it.lat) && isFinite(it.lon))))
       : (tourRaw.nrs || []).filter((n) => validNr(n)).map((nr) => ({ nr }))
   };
+  { let n = 0; for (const it of tour.seq) if (!it.nr) n = Math.max(n, it.no || 0); for (const it of tour.seq) if (!it.nr && !it.no) it.no = ++n; }
   const inTour = (nr) => tour.seq.some((it) => it.nr === nr);
   let filter = "all", steigerOnly = false, nearMode = false;
 
@@ -1294,7 +1296,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     let t = null;
     body.addEventListener("touchstart", (e) => {
       t = null;
-      if (e.touches.length !== 1 || d) return;
+      if (e.touches.length !== 1 || d || e.target.closest(".grip")) return;
       t = { x0: e.touches[0].clientX, y0: e.touches[0].clientY, decided: false, active: false };
     }, { passive: true });
     body.addEventListener("touchmove", (e) => {
@@ -1598,7 +1600,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     seq.splice(best, 0, item);
   }
   function addVia(ll) {
-    const v = { id: uid(), lat: +ll.lat.toFixed(6), lon: +ll.lng.toFixed(6) };
+    const v = { id: uid(), no: tourVias().reduce((m, x) => Math.max(m, x.no || 0), 0) + 1, lat: +ll.lat.toFixed(6), lon: +ll.lng.toFixed(6) };
     insertCheapest(v, startPoint());
     tourChanged();
     try { navigator.vibrate && navigator.vibrate(10); } catch (e) {}
@@ -1613,16 +1615,16 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   function renderVias() {
     const vias = tourVias(), ids = new Set(vias.map((v) => v.id));
     for (const [id, m] of viaMarkers) if (!ids.has(id)) { m.remove(); viaMarkers.delete(id); }
-    vias.forEach((v, i) => {
+    vias.forEach((v) => {
       let m = viaMarkers.get(v.id);
       if (!m) {
-        m = L.marker([v.lat, v.lon], { icon: viaIcon(i + 1), draggable: true, autoPan: true, zIndexOffset: 1500, title: `Wegpunkt ${i + 1}` });
+        m = L.marker([v.lat, v.lon], { icon: viaIcon(v.no), draggable: true, autoPan: true, zIndexOffset: 1500, title: `Wegpunkt ${v.no}` });
         m.on("dragend", () => { const ll = m.getLatLng(), it = tour.seq.find((x) => x.id === v.id); if (it) { it.lat = +ll.lat.toFixed(6); it.lon = +ll.lng.toFixed(6); tourChanged(); } });
         m.on("click", () => removeVia(v.id));
-        m.addTo(map); viaMarkers.set(v.id, m); m._no = i + 1;
+        m.addTo(map); viaMarkers.set(v.id, m); m._no = v.no;
       } else {
         m.setLatLng([v.lat, v.lon]);
-        if (m._no !== i + 1) { m.setIcon(viaIcon(i + 1)); m._no = i + 1; }
+        if (m._no !== v.no) { m.setIcon(viaIcon(v.no)); m._no = v.no; }
       }
     });
   }
@@ -1655,29 +1657,22 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     $("#tFromMe").setAttribute("aria-pressed", tour.fromMe);
     $("#tEmpty").hidden = !!(nS || nV);
     tList.textContent = "";
-    let viaNo = 0;
-    const MV = `<span class="mv"><button type="button" class="up" aria-label="Nach oben"><svg class="i" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button><button type="button" class="dn" aria-label="Nach unten"><svg class="i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></span>`;
+    const GRIP = `<span class="grip" aria-hidden="true"><svg viewBox="0 0 10 16"><circle cx="2.5" cy="2.5" r="1.6"/><circle cx="7.5" cy="2.5" r="1.6"/><circle cx="2.5" cy="8" r="1.6"/><circle cx="7.5" cy="8" r="1.6"/><circle cx="2.5" cy="13.5" r="1.6"/><circle cx="7.5" cy="13.5" r="1.6"/></svg></span>`;
     tour.seq.forEach((it, idx) => {
       const li = document.createElement("li");
       if (it.nr) {
         const s = byNr.get(it.nr);
         li.className = collected[it.nr] ? "done" : "";
-        li.innerHTML = `<span class="step">${idx + 1}.</span><span class="badge">${it.nr}</span><span class="tt"><b></b><small></small></span>${MV}<button type="button" class="del" aria-label="Aus der Tour entfernen">${ICON_X}</button>`;
+        li.innerHTML = `${GRIP}<span class="step">${idx + 1}.</span><span class="badge">${it.nr}</span><span class="tt"><b></b><small></small></span><button type="button" class="del" aria-label="Aus der Tour entfernen">${ICON_X}</button>`;
         li.querySelector("b").textContent = s.name;
         li.querySelector("small").textContent = s.ort + (posOf(it.nr) ? "" : " · keine Position");
         li.querySelector(".del").addEventListener("click", () => toggleTour(it.nr));
       } else {
-        viaNo++;
-        li.innerHTML = `<span class="step">${idx + 1}.</span><span class="vbadge"><i></i><b>${viaNo}</b></span><span class="tt"><b>Wegpunkt ${viaNo}</b><small>eigener Zwischenpunkt</small></span>${MV}<button type="button" class="del" aria-label="Wegpunkt löschen">${ICON_X}</button>`;
+        li.innerHTML = `${GRIP}<span class="step">${idx + 1}.</span><span class="vbadge"><i></i><b>${it.no}</b></span><span class="tt"><b>Wegpunkt ${it.no}</b><small>eigener Zwischenpunkt</small></span><button type="button" class="del" aria-label="Wegpunkt löschen">${ICON_X}</button>`;
         li.querySelector(".del").addEventListener("click", () => removeVia(it.id));
       }
-      const up = li.querySelector(".up"), dn = li.querySelector(".dn");
-      up.disabled = idx === 0; dn.disabled = idx === tour.seq.length - 1;
-      up.addEventListener("click", () => moveItem(idx, -1));
-      dn.addEventListener("click", () => moveItem(idx, 1));
       tList.appendChild(li);
     });
-    $("#tAuto").hidden = !tour.manual || tour.seq.length < 3;
     tSum.hidden = !routeRes;
     if (routeRes) {
       const r = routeRes;
@@ -1693,25 +1688,60 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     $("#tCalcLbl").textContent = routing ? "Berechne Route …" : (routeRes ? "Neu berechnen" : "Route berechnen");
     $("#tCalc").classList.toggle("busy", routing);
     const ready = !!routeRes && !routeRes.stale && !routing;
-    $("#tGpxKey").disabled = !ready; $("#tGpxFull").disabled = !ready;
+    $("#tGpxFull").disabled = !ready;
     $("#tVia").disabled = !nS && !nV;
     $("#tClear").disabled = !nS && !nV;
   }
   tourBtn.addEventListener("click", () => { paintTour(); openPanel(tourEl); });
-  /* eigene Reihenfolge: bleibt erhalten, bis „automatisch optimieren“ gewählt wird */
-  function moveItem(i, d) {
-    const j = i + d; if (j < 0 || j >= tour.seq.length) return;
-    [tour.seq[i], tour.seq[j]] = [tour.seq[j], tour.seq[i]];
+  /* Reihenfolge per Ziehen am Griff – danach bleibt die eigene Reihenfolge erhalten */
+  const tBody = tourEl.querySelector(".p-body");
+  let sort = null;
+  tList.addEventListener("pointerdown", (e) => {
+    const g = e.target.closest(".grip"); if (!g || sort) return;
+    const li = g.closest("li"), items = [...tList.children], from = items.indexOf(li);
+    if (from < 0 || items.length < 2) return;
+    e.preventDefault();
+    try { g.setPointerCapture(e.pointerId); } catch (err) {}
+    sort = { id: e.pointerId, g, li, items, from, to: from, y0: e.clientY, s0: tBody.scrollTop,
+      rects: items.map((x) => x.getBoundingClientRect()), h: li.getBoundingClientRect().height };
+    li.classList.add("dragging"); tList.classList.add("sorting");
+    try { navigator.vibrate && navigator.vibrate(12); } catch (err) {}
+  });
+  function sortMove(e) {
+    if (!sort || e.pointerId !== sort.id) return;
+    const br = tBody.getBoundingClientRect();
+    if (e.clientY < br.top + 56) tBody.scrollTop -= 10; else if (e.clientY > br.bottom - 56) tBody.scrollTop += 10;
+    const dy = e.clientY - sort.y0 + (tBody.scrollTop - sort.s0);
+    sort.li.style.transform = `translateY(${dy}px)`;
+    const c = sort.rects[sort.from].top + sort.h / 2 + dy;
+    let to = sort.from;
+    sort.rects.forEach((r, k) => {
+      const mid = r.top + r.height / 2;
+      if (k < sort.from && c < mid) to = Math.min(to, k);
+      if (k > sort.from && c > mid) to = Math.max(to, k);
+    });
+    sort.to = to;
+    sort.items.forEach((x, k) => {
+      if (k === sort.from) return;
+      const shift = (sort.from < to && k > sort.from && k <= to) ? -sort.h : (sort.from > to && k >= to && k < sort.from) ? sort.h : 0;
+      x.style.transform = shift ? `translateY(${shift}px)` : "";
+    });
+  }
+  function sortEnd(e) {
+    if (!sort || e.pointerId !== sort.id) return;
+    const { from, to, items } = sort; sort = null;
+    tList.classList.remove("sorting");
+    items.forEach((x) => { x.style.transform = ""; x.classList.remove("dragging"); });
+    suppressClickUntil = performance.now() + 300;
+    if (to === from) return;
+    const [it] = tour.seq.splice(from, 1);
+    tour.seq.splice(to, 0, it);
     tour.manual = true; tour.dirty = false;
     tourChanged();
-    try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
   }
-  $("#tAuto").addEventListener("click", () => {
-    tour.manual = false; tour.dirty = true;
-    if (!routeRes) reorderTour(startPoint());
-    tourChanged({ reorder: true });
-    toast("Reihenfolge wird automatisch optimiert");
-  });
+  tList.addEventListener("pointermove", sortMove);
+  tList.addEventListener("pointerup", sortEnd);
+  tList.addEventListener("pointercancel", sortEnd);
 
   /* Richtungspfeile entlang der Route – alle ~110 px, nur im sichtbaren Bereich */
   const arrowLayer = L.layerGroup().addTo(map);
@@ -1883,10 +1913,9 @@ ${trk}
   }
   async function exportGpx(mode) {
     if (!routeRes || routeRes.stale) return;
-    const name = `stempeltour-${tourStamps().slice(0, 6).join("-")}${mode === "key" ? "-wegpunkte" : "-strecke"}.gpx`;
+    const name = `stempeltour-${tourStamps().slice(0, 6).join("-")}.gpx`;
     await share(new Blob([buildGpx(routeRes, mode)], { type: "application/gpx+xml" }), name, "application/gpx+xml");
   }
-  $("#tGpxKey").addEventListener("click", () => exportGpx("key"));
   $("#tGpxFull").addEventListener("click", () => exportGpx("full"));
 
   /* ---------- Stempel setzen ---------- */
