@@ -18,7 +18,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-/* Layout: Vollbild-Karte · schwebende Fortschrittsanzeige oben · ziehbares Bottom-Sheet mit Liste · Detail-Karte von unten
+/* Layout: Vollbild-Karte · schwebende Fortschrittsanzeige oben · Liste als Bottom-Sheet (zu / ganz offen)
+   · Stempel-Detail als zweites Sheet (kompakt / hochgewischt mit Bewertung, Notizen, Fotos)
    Farben: Grün = Stempelkasten (Bedienung), Violett = Stempelfarbe (nur für „gestempelt“) */
 :root {
   --bg: #EDF1EC;
@@ -35,6 +36,8 @@
   --ink-fg: #FFFFFF;
   --ink-soft: #F3EAF8;
   --warn: #A3561C;
+  --star: #D69E0F;
+  --star-off: #D5DCD5;
   --bronze: #A0652A; --silver: #7F878F; --gold: #B38A14; --rose: #C0577E;
   --garnet: #9B2D3C; --copper: #B5532F; --stone: #5E6B66;
   --scrim: rgba(10, 18, 13, .38);
@@ -48,7 +51,7 @@
   :root:not([data-theme="light"]) {
     --bg: #0E1310; --surface: #151B17; --surface-2: #1E2620; --fg: #E6ECE6; --muted: #98A59B;
     --line: #29332C; --handle: #3A463D; --brand: #7FC29A; --brand-fg: #0E1310; --brand-soft: #1D2F23;
-    --ink: #C28DE3; --ink-fg: #1A1020; --ink-soft: #2A2034; --warn: #E09A5E;
+    --ink: #C28DE3; --ink-fg: #1A1020; --ink-soft: #2A2034; --warn: #E09A5E; --star: #F0C24B; --star-off: #34403A;
     --bronze: #D09358; --silver: #AEB6BD; --gold: #E0B843; --rose: #E58AAD;
     --garnet: #E0717F; --copper: #E5835E; --stone: #9FADA7;
     --scrim: rgba(0, 0, 0, .55); --shadow: 0 -6px 28px rgba(0, 0, 0, .5); --shadow-s: 0 2px 12px rgba(0, 0, 0, .5);
@@ -58,7 +61,7 @@
 :root[data-theme="dark"] {
   --bg: #0E1310; --surface: #151B17; --surface-2: #1E2620; --fg: #E6ECE6; --muted: #98A59B;
   --line: #29332C; --handle: #3A463D; --brand: #7FC29A; --brand-fg: #0E1310; --brand-soft: #1D2F23;
-  --ink: #C28DE3; --ink-fg: #1A1020; --ink-soft: #2A2034; --warn: #E09A5E;
+  --ink: #C28DE3; --ink-fg: #1A1020; --ink-soft: #2A2034; --warn: #E09A5E; --star: #F0C24B; --star-off: #34403A;
   --bronze: #D09358; --silver: #AEB6BD; --gold: #E0B843; --rose: #E58AAD;
   --garnet: #E0717F; --copper: #E5835E; --stone: #9FADA7;
   --scrim: rgba(0, 0, 0, .55); --shadow: 0 -6px 28px rgba(0, 0, 0, .5); --shadow-s: 0 2px 12px rgba(0, 0, 0, .5);
@@ -68,7 +71,7 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; margin: 0; overscroll-behavior: none; }
 body { background: var(--bg); color: var(--fg); font: 16px/1.4 var(--f-body); overflow: hidden; }
-button, input { font: inherit; color: inherit; }
+button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; touch-action: manipulation; }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 [hidden] { display: none !important; }
@@ -141,14 +144,16 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
   right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(var(--peekH, 150px) + 28px);
 }
 
-/* ---------- Bottom-Sheet mit Liste ---------- */
+/* ---------- Sheets (Liste & Detail) ---------- */
 .sheet {
-  position: fixed; z-index: 1000; left: 0; right: 0; bottom: 0; height: var(--sheetH, 85%);
+  position: fixed; left: 0; right: 0; bottom: 0; height: var(--sheetH, 85%);
   display: flex; flex-direction: column; background: var(--surface);
   border-radius: 22px 22px 0 0; box-shadow: var(--shadow);
-  transform: translateY(var(--y, 70vh)); transition: transform .32s cubic-bezier(.2, .8, .25, 1); will-change: transform;
+  transform: translateY(var(--y, 110%)); transition: transform .32s cubic-bezier(.2, .8, .25, 1); will-change: transform;
 }
 .sheet.drag { transition: none; }
+#sheet { z-index: 1000; }
+#detail { z-index: 1050; }
 .sh-head { flex: none; padding-bottom: 10px; touch-action: none; user-select: none; -webkit-user-select: none; }
 .grab { display: block; width: 100%; height: 24px; border: 0; padding: 0; background: none; position: relative; }
 .grab::before { content: ""; position: absolute; left: 50%; top: 9px; width: 42px; height: 5px; margin-left: -21px; border-radius: 3px; background: var(--handle); }
@@ -200,6 +205,7 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
 .row-t b { font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .row-t small { color: var(--muted); font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-t small .d { color: var(--ink); font-weight: 600; }
+.row-t small .st { color: var(--star); font-weight: 600; }
 .row-t small em { font-style: normal; color: var(--warn); }
 .tog { flex: none; width: 56px; height: 56px; border: 0; padding: 0; background: none; display: grid; place-items: center; border-radius: 50%; }
 .tog span {
@@ -211,30 +217,22 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
 .tog:active span { transform: scale(.88); }
 .empty { padding: 36px 24px; color: var(--muted); text-align: center; }
 
-/* ---------- Detail / Abzeichen / Daten ---------- */
-.scrim { position: fixed; inset: 0; z-index: 1090; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
-.scrim.on { opacity: 1; pointer-events: auto; }
-.panel {
-  position: fixed; z-index: 1100; left: 0; right: 0; bottom: 0;
-  max-height: calc(100% - env(safe-area-inset-top, 0px) - 70px);
-  display: flex; flex-direction: column; background: var(--surface); border-radius: 22px 22px 0 0; box-shadow: var(--shadow);
-  transform: translateY(105%); visibility: hidden;
-  transition: transform .32s cubic-bezier(.2, .8, .25, 1), visibility 0s linear .32s;
-}
-.panel.open { transform: translateY(var(--py, 0px)); visibility: visible; transition: transform .32s cubic-bezier(.2, .8, .25, 1), visibility 0s; }
-.panel.drag { transition: none; }
+/* ---------- Detail-Sheet ---------- */
 .p-head { flex: none; touch-action: none; user-select: none; -webkit-user-select: none; }
-.p-top { display: flex; align-items: center; gap: 8px; min-height: 44px; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+.p-top { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 44px; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
 .p-title { margin: 0; font: 700 1.35rem/1.1 var(--f-display); }
 .x { margin-left: auto; width: 44px; height: 44px; flex: none; border-radius: 50%; border: 0; background: var(--surface-2); display: grid; place-items: center; color: var(--muted); }
 .x .i { width: 20px; height: 20px; }
-.p-body {
-  overflow-y: auto; overscroll-behavior: contain;
-  padding: 4px max(20px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 22px) max(20px, env(safe-area-inset-left, 0px));
+.d-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  padding: 0 max(20px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 28px) max(20px, env(safe-area-inset-left, 0px));
 }
+#detail[data-state="compact"] .d-scroll, #detail[data-state="closed"] .d-scroll { overflow: hidden; }
+.tags { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .d-nr { font: 700 .82rem/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--brand); background: var(--brand-soft); padding: 7px 10px; border-radius: 8px; font-variant-numeric: tabular-nums; }
-.tag-m { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border-radius: 8px; border: 1.5px solid var(--line); font: 700 .76rem/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
-.tag-m svg { width: 13px; height: 13px; }
+.tag { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border-radius: 8px; border: 1.5px solid var(--line); font: 700 .76rem/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; }
+.tag svg { width: 13px; height: 13px; }
+.tag.np { color: var(--brand); }
 .d-name { margin: 12px 0 4px; font: 700 1.7rem/1.1 var(--f-display); text-wrap: balance; }
 .d-meta { margin: 0 0 18px; color: var(--muted); }
 .stamp {
@@ -253,8 +251,60 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
 }
 .btn .i { color: var(--brand); }
 .btn:active { background: var(--surface-2); }
-.d-src { margin: 14px 0 0; color: var(--muted); font-size: .8rem; }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-fg); }
+.btn.primary .i { color: inherit; }
+.more {
+  width: 100%; margin-top: 14px; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 4px 2px;
+  border: 0; border-top: 1px solid var(--line); background: none; color: var(--fg); text-align: left;
+}
+.more .t { flex: 1; min-width: 0; display: grid; }
+.more b { font-weight: 600; }
+.more small { color: var(--muted); font-size: .86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.more .chev { color: var(--muted); transition: transform .25s ease; }
+#detail[data-state="full"] .more .chev { transform: rotate(180deg); }
+.jr h3 { margin: 22px 0 10px; font: 700 1.08rem/1.2 var(--f-display); }
+.jr:first-child h3 { margin-top: 10px; }
+.stars { display: flex; gap: 2px; margin-left: -6px; }
+.star { width: 50px; height: 50px; border: 0; padding: 0; background: none; display: grid; place-items: center; color: var(--star-off); }
+.star svg { width: 34px; height: 34px; fill: currentColor; }
+.star.on { color: var(--star); }
+.star:active svg { transform: scale(.85); }
+.notes { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+.note { display: flex; align-items: flex-start; gap: 6px; padding: 10px 4px 10px 14px; border-radius: 12px; background: var(--surface-2); }
+.note div { flex: 1; min-width: 0; }
+.note small { display: block; color: var(--muted); font-size: .8rem; }
+.note p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.del { flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--muted); display: grid; place-items: center; }
+.del .i { width: 18px; height: 18px; }
+.note-add { display: grid; gap: 8px; }
+textarea {
+  width: 100%; min-height: 76px; resize: vertical; padding: 10px 12px; border-radius: 12px;
+  border: 1.5px solid var(--line); background: var(--surface-2); font-size: 16px; line-height: 1.4;
+}
+textarea:focus { outline: none; border-color: var(--brand); background: var(--surface); }
+.photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ph { position: relative; aspect-ratio: 1; max-width: 100%; border: 0; padding: 0; border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+.ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ph.add { display: grid; place-content: center; justify-items: center; gap: 4px; border: 2px dashed var(--line); background: none; color: var(--brand); font-weight: 600; font-size: .85rem; }
+.ph.add .i { width: 26px; height: 26px; }
+.d-src { margin: 22px 0 0; color: var(--muted); font-size: .8rem; }
 
+/* ---------- Abzeichen / Daten (einfache Panels) ---------- */
+.scrim { position: fixed; inset: 0; z-index: 1090; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.panel {
+  position: fixed; z-index: 1100; left: 0; right: 0; bottom: 0;
+  max-height: calc(100% - env(safe-area-inset-top, 0px) - 70px);
+  display: flex; flex-direction: column; background: var(--surface); border-radius: 22px 22px 0 0; box-shadow: var(--shadow);
+  transform: translateY(105%); visibility: hidden;
+  transition: transform .32s cubic-bezier(.2, .8, .25, 1), visibility 0s linear .32s;
+}
+.panel.open { transform: translateY(var(--py, 0px)); visibility: visible; transition: transform .32s cubic-bezier(.2, .8, .25, 1), visibility 0s; }
+.panel.drag { transition: none; }
+.p-body {
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px max(20px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 22px) max(20px, env(safe-area-inset-left, 0px));
+}
 .aw-list { list-style: none; margin: 4px 0 0; padding: 0; }
 .aw { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 6px 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .aw:last-child { border-bottom: 0; }
@@ -267,7 +317,6 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
 .aw .bar i { display: block; height: 100%; border-radius: 3px; background: var(--c); transition: width .4s ease; }
 .aw small { grid-column: 2 / 4; color: var(--muted); font-size: .85rem; }
 .aw .act { grid-column: 2 / 4; justify-self: start; margin-top: 4px; min-height: 44px; }
-
 .status { margin: 4px 0 16px; color: var(--muted); font-size: .92rem; }
 .status b { color: var(--fg); }
 .stack { display: grid; gap: 10px; }
@@ -275,9 +324,16 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
 .hint { margin: 16px 0 0; color: var(--muted); font-size: .88rem; }
 .hint a { color: var(--brand); font-weight: 600; }
 
+/* ---------- Fotoansicht ---------- */
+.viewer { position: fixed; inset: 0; z-index: 1300; background: rgba(0, 0, 0, .94); display: flex; align-items: center; justify-content: center; }
+.viewer img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.vbar { position: absolute; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 10px); display: flex; justify-content: space-between; padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+.vbtn { width: 48px; height: 48px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .16); color: #FFFFFF; display: grid; place-items: center; }
+.vdate { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); text-align: center; color: rgba(255, 255, 255, .8); font-size: .9rem; }
+
 /* ---------- Meldung ---------- */
 .toast {
-  position: fixed; z-index: 1200; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 72px);
+  position: fixed; z-index: 1400; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 72px);
   width: max-content; max-width: min(460px, calc(100vw - 24px));
   display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; min-height: 48px;
   border-radius: 14px; background: var(--fg); color: var(--bg); box-shadow: var(--shadow-s);
@@ -341,29 +397,58 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
   <ul class="list" id="list"></ul>
 </section>
 
-<div class="scrim" id="scrim"></div>
-
-<section class="panel" id="detail" aria-label="Stempelstelle">
-  <div class="p-head">
+<section class="sheet" id="detail" aria-label="Stempelstelle" data-state="closed" inert>
+  <div class="p-head" id="dHead">
     <span class="grab" aria-hidden="true"></span>
     <div class="p-top">
+      <span class="tags">
       <span class="d-nr" id="dNr"></span>
-      <span class="tag-m" id="dTag"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3.2 13.2 11 5.4M12.8 13.2 5 5.4" stroke-width="1.7"/><path d="m9.3 3.5 3.2 3.2M3.5 6.7l3.2-3.2" stroke-width="2.8"/></svg>Steiger-Pflicht</span>
-      <button class="x" type="button" data-close aria-label="Schließen"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <span class="tag" id="dTagM"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3.2 13.2 11 5.4M12.8 13.2 5 5.4" stroke-width="1.7"/><path d="m9.3 3.5 3.2 3.2M3.5 6.7l3.2-3.2" stroke-width="2.8"/></svg>Steiger-Pflicht</span>
+      <span class="tag np" id="dTagNp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 6.5 11H9l-4 6h14l-4-6h2.5Z"/><path d="M12 17v4"/></svg>Nationalpark</span>
+      </span>
+      <button class="x" type="button" id="dClose" aria-label="Schließen"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
   </div>
-  <div class="p-body">
-    <h2 class="d-name" id="dName"></h2>
-    <p class="d-meta" id="dMeta"></p>
-    <button class="stamp" id="dStamp" type="button" aria-pressed="false"></button>
-    <div class="d-date" id="dDateRow"><label for="dDate">Gestempelt am</label><input type="date" id="dDate"></div>
-    <div class="d-actions">
-      <a class="btn" id="dInfo" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Infos</a>
-      <a class="btn" id="dRoute" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg>komoot-Route</a>
+  <div class="d-scroll" id="dScroll">
+    <div id="dCompact">
+      <h2 class="d-name" id="dName"></h2>
+      <p class="d-meta" id="dMeta"></p>
+      <button class="stamp" id="dStamp" type="button" aria-pressed="false"></button>
+      <div class="d-date" id="dDateRow"><label for="dDate">Gestempelt am</label><input type="date" id="dDate"></div>
+      <div class="d-actions">
+        <a class="btn" id="dInfo" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Infos</a>
+        <a class="btn" id="dRoute" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg><span id="dRouteLbl">In komoot</span></a>
+      </div>
+      <button class="more" id="dMore" type="button">
+        <svg class="i" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h6M9 14h6"/></svg>
+        <span class="t"><b>Bewertung, Notizen &amp; Fotos</b><small id="dMoreSum">Hochwischen oder hier tippen</small></span>
+        <svg class="i chev" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg>
+      </button>
     </div>
-    <p class="d-src" id="dSrc"></p>
+    <div id="dJournal">
+      <section class="jr">
+        <h3>Bewertung</h3>
+        <div class="stars" id="dStars" role="radiogroup" aria-label="Bewertung"></div>
+      </section>
+      <section class="jr">
+        <h3>Notizen</h3>
+        <ul class="notes" id="dNotes"></ul>
+        <div class="note-add">
+          <textarea id="dNoteText" rows="2" maxlength="600" placeholder="Kurzer Eintrag, z. B. Wetter, wer dabei war, Einkehr …"></textarea>
+          <button class="btn primary" id="dNoteAdd" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Eintrag speichern</button>
+        </div>
+      </section>
+      <section class="jr">
+        <h3>Fotos</h3>
+        <div class="photos" id="dPhotos"></div>
+        <input type="file" id="dPhotoFile" accept="image/*" multiple hidden>
+      </section>
+      <p class="d-src" id="dSrc"></p>
+    </div>
   </div>
 </section>
+
+<div class="scrim" id="scrim"></div>
 
 <section class="panel" id="awardsPanel" aria-label="Abzeichen">
   <div class="p-head">
@@ -381,18 +466,28 @@ svg.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor;
   <div class="p-body">
     <p class="status" id="status">Lade Positionen …</p>
     <div class="stack">
-      <button class="btn" id="exportBtn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Fortschritt sichern</button>
+      <button class="btn" id="exportBtn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Sicherung erstellen</button>
       <button class="btn" id="importBtn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>Sicherung einlesen</button>
       <button class="btn" id="refreshOsm" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>Positionen neu laden</button>
-      <button class="btn" id="gpxBtn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5"/></svg>Offizielle GPX/ZIP</button>
+      <button class="btn" id="gpxBtn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5"/></svg>Offizielle GPX/ZIP einlesen</button>
     </div>
-    <p class="hint">Dein Fortschritt liegt nur auf diesem Handy. „Fortschritt sichern“ legt eine Datei an, die du z. B. in Dateien oder per Nachricht ablegen kannst.</p>
-    <p class="hint">Positionen kommen aus OpenStreetMap. Genauer sind die <a href="https://www.harzer-wandernadel.de/stempelstellen/gps-download/" target="_blank" rel="noopener">offiziellen GPS-Daten</a>: ZIP herunterladen und über „Offizielle GPX/ZIP“ einlesen.</p>
+    <p class="hint">Stempel, Bewertungen, Notizen und Fotos liegen nur auf diesem Handy. „Sicherung erstellen“ packt alles in eine ZIP-Datei, die du in Dateien, iCloud/Drive oder per Nachricht ablegen kannst.</p>
+    <p class="hint">„(NPH)“ in der offiziellen Liste heißt <b>Nationalpark Harz</b>: Diese Stempel liegen im Nationalpark. Sie sind hier mit „Nationalpark“ gekennzeichnet.</p>
+    <p class="hint">Positionen kommen aus OpenStreetMap, ergänzt um komoot. Genauer sind die <a href="https://www.harzer-wandernadel.de/stempelstellen/gps-download/" target="_blank" rel="noopener">offiziellen GPS-Daten</a>: ZIP herunterladen und hier einlesen.</p>
     <p class="hint">Schon angesehene Kartenbereiche funktionieren auch ohne Netz. Vor einer Tour also einmal im WLAN durch die Gegend zoomen.</p>
     <input type="file" id="gpxFile" accept=".gpx,.zip,.xml,application/gpx+xml,application/zip" hidden>
-    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <input type="file" id="importFile" accept=".zip,.json,application/zip,application/json" hidden>
   </div>
 </section>
+
+<div class="viewer" id="viewer" hidden>
+  <img id="vImg" alt="">
+  <div class="vbar">
+    <button class="vbtn" id="vClose" type="button" aria-label="Foto schließen"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <button class="vbtn" id="vDel" type="button" aria-label="Foto löschen"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+  </div>
+  <div class="vdate" id="vDate"></div>
+</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -710,6 +805,10 @@ function parseGpxWith(parseXml, text, fileName) {
   }
   return out;
 }
+
+/* komoot-Highlights je Stempel aus der öffentlichen Sammlung „Die 222 Stempelstellen der Harzer Wandernadel“ (komoot.com/collection/889371), Stand 30.10.2026.
+   [Nr, Highlight-ID, Breite, Länge, Nummer im Titel bestätigt]. Wird nur genutzt, wenn das Highlight ≤ 600 m von der Stempelposition liegt. */
+const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],[3,129064,51.84415,10.611709,1],[4,416960,51.862639,10.618018,1],[5,416966,51.852352,10.654963,0],[6,416624,51.828696,10.634896,1],[7,116367,51.831974,10.667931,1],[8,129060,51.819229,10.627865,1],[9,2925924,51.800508,10.615879,1],[10,193729,51.802973,10.643021,1],[11,2892892,51.784989,10.617809,1],[12,106735,51.760822,10.569141,1],[13,169774,51.773351,10.666992,1],[14,69871,51.75438,10.665708,1],[15,71005,51.781671,10.694256,1],[16,116383,51.823459,10.652194,1],[17,80537,51.772171,10.696617,1],[18,107161,51.751665,10.63233,1],[19,132724,51.820336,10.573059,1],[20,73566,51.750248,10.675135,1],[21,73564,51.754074,10.680894,1],[22,910752,51.790679,10.645056,1],[23,1583709,51.807728,10.657803,1],[24,193731,51.819313,10.673428,1],[25,116368,51.825311,10.688474,1],[26,126877,51.817994,10.707684,0],[27,70339,51.796671,10.711986,1],[28,70338,51.804867,10.699857,1],[29,229632,51.80468,10.73483,1],[30,919610,51.846253,10.663038,1],[31,189548,51.830145,10.798032,0],[32,8172404,51.82755,10.8126,0],[33,334341,51.826197,10.848361,1],[34,203441,51.809842,10.79839,1],[35,193222,51.815314,10.776581,1],[36,90587,51.79179,10.778757,0],[37,534359,51.788611,10.817778,0],[38,225668,51.773816,10.81673,1],[39,229990,51.759991,10.80174,1],[40,154100,51.750928,10.753727,1],[41,76863,51.738425,10.767203,1],[42,76864,51.73558,10.805068,1],[43,883938,51.618656,10.503981,0],[44,84888,51.705598,10.740767,0],[45,182924,51.65726,10.648051,1],[46,250779,51.693665,10.666709,1],[47,131229,51.652783,10.748385,1],[48,124610,51.64132,10.75658,1],[49,355546,51.67657,10.75559,1],[50,73553,51.661002,10.767274,1],[51,147153,51.656508,10.796869,1],[52,116877,51.702763,10.790623,1],[53,191300,51.709649,10.831019,1],[54,107169,51.729224,10.880434,1],[55,190534,51.650396,10.918836,1],[56,125777,51.711563,10.801137,1],[57,154766,51.69017,10.989327,1],[58,126437,51.63839,10.630569,1],[59,190134,51.805003,10.909805,1],[60,270423,51.721897,10.896126,1],[61,7299507,51.71344,11.17957,1],[62,107523,51.74324,10.91932,0],[63,169253,51.729739,10.923051,1],[64,229880,51.73002,10.94956,1],[65,2713230,51.737121,10.955643,1],[66,99693,51.72307,10.96608,1],[67,149781,51.716986,10.978062,1],[68,99696,51.717228,11.002245,1],[69,99694,51.722062,10.97008,1],[70,1101069,51.734427,11.006553,1],[71,1553674,51.737233,11.018507,1],[72,72916,51.730576,11.01673,1],[73,72919,51.72906,11.057246,1],[74,86297,51.777055,11.001514,1],[75,80529,51.7374,10.566013,1],[76,1765350,51.785942,10.967106,1],[77,118486,51.782754,10.954163,1],[78,118488,51.787487,10.956206,1],[79,142316,51.78499,10.92302,1],[80,1574534,51.813889,10.958496,1],[81,68660,51.816624,10.966885,1],[82,68723,51.816486,10.948763,1],[83,620860,51.837694,10.859234,1],[84,2931481,51.82677,10.911308,1],[85,118181,51.808488,10.728685,1],[86,351749,51.661916,11.341572,1],[87,222736,51.787903,10.872605,1],[88,90413,51.753766,10.846107,1],[89,222727,51.759737,10.850536,1],[90,118708,51.617164,10.65177,1],[91,434239,51.89018,10.418638,1],[92,2189411,51.588238,10.827019,0],[93,73558,51.60139,10.792187,1],[94,190688,51.60645,10.892326,1],[95,130564,51.587414,10.791811,1],[96,208010,51.608078,10.728538,1],[97,73552,51.632703,10.79116,1],[98,111776,51.5702,10.837657,1],[99,655309,51.556475,10.825503,1],[100,231898,51.554092,10.879805,1],[101,70203,51.635066,10.404337,1],[102,72234,51.91455,10.25128,1],[103,1632084,51.880417,10.255478,1],[104,73568,51.884995,10.238593,1],[105,92267,51.825882,10.288524,1],[106,138502,51.87696,10.292065,1],[107,201612,51.86355,10.290231,1],[108,125534,51.91511,10.4677,1],[109,331951,51.912598,10.33568,1],[110,73572,51.900541,10.382273,1],[111,83247,51.906482,10.405399,1],[112,73978,51.86062,10.35723,1],[113,169680,51.849459,10.300053,1],[114,211749,51.88848,10.426518,1],[115,95329,51.64081,10.47223,0],[116,82973,51.867154,10.473989,1],[117,216537,51.872033,10.480613,0],[118,197111,51.868981,10.486117,1],[119,194540,51.854145,10.467828,1],[120,7125599,51.879266,10.527716,0],[121,6967051,51.871545,10.566935,1],[122,157104,51.875726,10.593154,0],[123,127040,51.716278,10.562368,1],[124,75574,51.840846,10.423467,1],[125,75575,51.848892,10.382059,1],[126,2870391,51.837043,10.379892,1],[127,123238,51.797937,10.388834,1],[128,90437,51.78568,10.377113,1],[129,125402,51.819173,10.225056,1],[130,81973,51.819847,10.245299,1],[131,195807,51.792046,10.275752,1],[132,746563,51.805876,10.445573,1],[133,106714,51.803493,10.487931,1],[134,313011,51.78551,10.46737,1],[135,427396,51.790329,10.503085,0],[136,128092,51.787793,10.586209,1],[137,227077,51.776059,10.350924,1],[138,125361,51.766714,10.355279,1],[139,617881,51.766188,10.313758,1],[140,126428,51.74627,10.30123,1],[141,448725,51.78451,10.286922,0],[142,229903,51.89517,10.27884,1],[143,247621,51.723077,10.336389,1],[144,75580,51.728011,10.403417,1],[145,125363,51.777187,10.387835,1],[146,229962,51.762799,10.445077,1],[147,328442,51.753831,10.398272,1],[148,101724,51.7231,10.580995,0],[149,121847,51.79506,10.475745,0],[150,76222,51.667387,10.430068,1],[151,70204,51.62916,10.409342,1],[152,144927,51.643387,10.442528,1],[153,127630,51.68835,10.472215,1],[154,6585234,51.731892,10.510874,1],[155,81436,51.729225,10.538458,1],[156,1649612,51.75677,10.61579,0],[157,3867339,51.690391,10.595599,1],[158,131096,51.638217,10.525053,1],[159,126435,51.656541,10.554342,0],[160,118710,51.642311,10.610837,1],[161,126434,51.630728,10.542718,1],[162,2882942,51.628232,10.585013,1],[163,122312,51.632923,10.603914,0],[164,250771,51.62303,10.64333,1],[165,232179,51.62457,10.65715,1],[166,250759,51.580699,10.583754,1],[167,592644,51.581083,10.645722,0],[168,2679487,51.78134,10.580579,1],[169,1077839,51.855632,10.573171,1],[170,71367,51.864613,10.604559,0],[171,2803705,51.888302,10.331883,0],[172,87044,51.63699,10.968374,1],[173,1052956,51.63757,11.022851,1],[174,197444,51.775448,10.719164,1],[175,800144,51.611826,11.065201,1],[176,132138,51.63221,11.083027,1],[177,82750,51.646338,11.114743,1],[178,806429,51.73354,11.017463,0],[179,82748,51.668474,11.166125,1],[180,130579,51.707146,11.255466,1],[181,203276,51.716,11.210145,1],[182,131834,51.69134,11.182514,1],[183,946764,51.71774,11.13077,1],[184,86118,51.682137,11.096202,1],[185,145558,51.723785,11.119109,1],[186,77778,51.71647,11.104913,1],[187,1589584,51.726449,11.080768,1],[188,201600,51.75783,11.08274,0],[189,86119,51.684757,11.079689,1],[190,86121,51.67943,11.064985,1],[191,86122,51.67243,11.036681,1],[192,250758,51.57685,10.575023,1],[193,84090,51.607961,11.136755,1],[194,132306,51.617975,11.081632,1],[195,317984,51.660973,11.12618,0],[196,757358,51.68504,11.112361,1],[197,131840,51.66902,11.1928,1],[198,87064,51.517698,10.858003,1],[199,73578,51.714283,11.258749,1],[200,102777,51.681763,11.266271,0],[201,78462,51.714108,11.34773,1],[202,128096,51.685275,11.307197,0],[203,1301745,51.678916,11.233136,1],[204,73579,51.685441,11.254415,1],[205,75932,51.663312,11.306384,1],[206,139581,51.675708,10.641299,1],[207,73577,51.700641,11.283479,1],[208,78460,51.534644,11.313788,1],[209,871284,51.493053,11.27098,0],[210,158661,51.50133,11.141928,1],[211,158671,51.60758,11.014963,1],[212,83372,51.493201,11.117265,1],[213,84682,51.488986,11.077609,1],[214,2549619,51.497966,10.948305,1],[215,836039,51.5809,11.005473,0],[216,378885,51.571778,10.952613,0],[217,160375,51.779358,10.532826,1],[218,111777,51.578804,10.86337,1],[219,73576,51.569637,11.192624,1],[220,905394,51.609493,10.531916,0],[221,229895,51.804163,10.513803,0],[222,130385,51.52031,11.276817,1]];
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -717,33 +816,65 @@ function parseGpxWith(parseXml, text, fileName) {
 
 <script>
 (() => {
-  /* ---------- Speicher (Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
+  /* ---------- Speicher (alte Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
   const LS = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
   };
-  const K = { done: "hwn.collected.v1", osm: "hwn.coords.osm.v1", gpx: "hwn.coords.gpx.v1", view: "hwn.view.v1", layer: "hwn.layer.v1" };
+  const K = { done: "hwn.collected.v1", osm: "hwn.coords.osm.v1", gpx: "hwn.coords.gpx.v1", view: "hwn.view.v1", layer: "hwn.layer.v1", journal: "hwn.journal.v1" };
 
   let collected = LS.get(K.done, {});
   let osm = LS.get(K.osm, null);
   let gpx = LS.get(K.gpx, null);
+  let journal = LS.get(K.journal, {});      // { nr: { r: 0–5, notes: [{ id, d, t }] } }
   let filter = "all", steigerOnly = false, nearMode = false;
 
   const $ = (s) => document.querySelector(s);
   const root = document.documentElement;
-  const byNr = new Map(STAMPS.map((s) => [s[0], { nr: s[0], name: s[1], ort: s[2], slug: s[3] }]));
+  const NPH = /\s*\(NPH\)/g;
+  const byNr = new Map(STAMPS.map(([nr, name, ort, slug]) => [nr, {
+    nr, slug, name: name.replace(NPH, "").trim(), ort: ort.replace(NPH, "").trim(), nph: /\(NPH\)/.test(name + ort)
+  }]));
+  const KM = new Map(KOMOOT.map(([nr, id, lat, lon, ok]) => [nr, { id, lat, lon, ok: !!ok }]));
   const todayIso = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
   const fmtDate = (iso) => { if (!iso) return ""; const [y, m, d] = iso.slice(0, 10).split("-"); return `${d}.${m}.${y}`; };
   const pad = (n) => String(n).padStart(3, "0");
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const linkOf = (s) => s.slug ? HWN_BASE + s.slug + "/" : HWN_TABLE;
-  const komootOf = (p) => `https://www.komoot.com/plan/@${p.lat.toFixed(6)},${p.lon.toFixed(6)},15z`;
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const ICON_CHECK = '<svg class="i" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   const ICON_STAMP = '<svg class="i" viewBox="0 0 24 24"><path d="M9.5 3h5v5.5l-.8 2.5H18a2 2 0 0 1 2 2v3H4v-3a2 2 0 0 1 2-2h4.3l-.8-2.5Z"/><path d="M5 20h14"/></svg>';
+  const ICON_X = '<svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  const ICON_STAR = '<svg viewBox="0 0 24 24"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>';
+  const ICON_CAM = '<svg class="i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 
+  function hav(a, b) {
+    const R = 6371, t = Math.PI / 180;
+    const dLat = (b.lat - a.lat) * t, dLon = (b.lon - a.lon) * t;
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * t) * Math.cos(b.lat * t) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(x));
+  }
   function posOf(nr) {
     if (gpx?.pts?.[nr]) return { lat: gpx.pts[nr][0], lon: gpx.pts[nr][1], src: "gpx" };
     if (osm?.pts?.[nr]) return { lat: osm.pts[nr][0], lon: osm.pts[nr][1], src: "osm" };
+    const k = KM.get(nr);
+    if (k && k.ok) return { lat: k.lat, lon: k.lon, src: "komoot" };
     return null;
+  }
+  /* komoot-Highlight nur, wenn es wirklich an dieser Stempelstelle liegt */
+  function komootFor(nr) {
+    const k = KM.get(nr), p = posOf(nr);
+    if (!k || !p) return null;
+    return p.src === "komoot" || hav(p, k) <= 0.6 ? k : null;
+  }
+  function routeFor(nr) {
+    const k = komootFor(nr);
+    if (k) return { href: `https://www.komoot.com/highlight/${k.id}`, label: "In komoot" };
+    const p = posOf(nr); if (!p) return null;
+    return {
+      href: isIOS ? `https://maps.apple.com/?daddr=${p.lat},${p.lon}&dirflg=w` : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}&travelmode=walking`,
+      label: "Route"
+    };
   }
 
   /* ---------- Meldung (optional mit Aktion) ---------- */
@@ -770,7 +901,6 @@ function parseGpxWith(parseXml, text, fileName) {
     .setView(saved ? [saved.lat, saved.lng] : [51.74, 10.72], saved ? saved.z : 10);
   if (matchMedia("(pointer: fine)").matches) L.control.zoom({ position: "bottomright", zoomInTitle: "Hineinzoomen", zoomOutTitle: "Herauszoomen" }).addTo(map);
   map.attributionControl.setPrefix(false);
-
   const layers = {
     osm: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
@@ -791,7 +921,6 @@ function parseGpxWith(parseXml, text, fileName) {
     layerBtn.setAttribute("aria-pressed", layerName === "topo");
     toast(layerName === "topo" ? "Topografische Karte" : "Standardkarte");
   });
-
   const setZoomClass = () => mapEl.classList.toggle("z-low", map.getZoom() < 12);
   map.on("zoomend", setZoomClass); setZoomClass();
   map.on("moveend", () => { const c = map.getCenter(); LS.set(K.view, { lat: c.lat, lng: c.lng, z: map.getZoom() }); });
@@ -825,102 +954,184 @@ function parseGpxWith(parseXml, text, fileName) {
     if (nr) { refreshMarker(nr); rows.get(nr)?.classList.add("sel"); }
   }
 
-  /* ---------- Bottom-Sheet ---------- */
-  const sheet = $("#sheet"), shHead = $("#shHead"), topbar = $("#topbar"), qEl = $("#q");
+  /* ---------- Sheet-Mechanik (Ziehen am Griff, Weiterziehen am Listenanfang) ---------- */
+  const topbar = $("#topbar");
   const probe = document.createElement("div");
   probe.style.cssText = "position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none";
   document.body.appendChild(probe);
-  let sheetState = "peek";
-  let Y = { full: 0, half: 300, peek: 600 };
-  function layoutSheet() {
+  let Hpx = 600, peekPx = 150, suppressClickUntil = 0;
+  document.addEventListener("click", (e) => {
+    if (performance.now() < suppressClickUntil) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+
+  function makeSheet(el, cfg) {
+    const S = { state: cfg.initial, Y: {} };
+    S.apply = () => {
+      const y = S.Y[S.state];
+      el.style.setProperty("--y", y + "px");
+      el.style.setProperty("--ypad", Math.max(0, Math.min(y, Hpx)) + "px");
+      el.dataset.state = S.state;
+    };
+    S.layout = () => { S.Y = cfg.states(); S.apply(); };
+    S.set = (st) => { const prev = S.state; S.state = st; S.apply(); if (cfg.onSet) cfg.onSet(st, prev); };
+    let d = null;
+    const begin = (y) => {
+      const now = performance.now();
+      d = { y0: y, base: S.Y[S.state], cur: S.Y[S.state], v: 0, lastY: y, lastT: now };
+      el.classList.add("drag");
+    };
+    const move = (y) => {
+      const vals = Object.values(S.Y), lo = Math.min(...vals), hi = Math.max(...vals);
+      let ny = d.base + (y - d.y0);
+      if (ny < lo) ny = lo + (ny - lo) / 3;
+      if (ny > hi) ny = hi + (ny - hi) / 3;
+      d.cur = ny; el.style.setProperty("--y", ny + "px");
+      const now = performance.now(), dt = now - d.lastT;
+      if (dt > 0) d.v = 0.7 * ((y - d.lastY) / dt) + 0.3 * d.v;
+      d.lastY = y; d.lastT = now;
+    };
+    const end = () => {
+      el.classList.remove("drag");
+      const names = Object.keys(S.Y).sort((a, b) => S.Y[a] - S.Y[b]);
+      let next;
+      if (d.v > 0.35) next = names.find((n) => S.Y[n] > d.cur + 2) || names[names.length - 1];
+      else if (d.v < -0.35) next = [...names].reverse().find((n) => S.Y[n] < d.cur - 2) || names[0];
+      else next = names.reduce((a, b) => Math.abs(S.Y[a] - d.cur) <= Math.abs(S.Y[b] - d.cur) ? a : b);
+      d = null; suppressClickUntil = performance.now() + 350;
+      S.set(next);
+    };
+    for (const h of cfg.handles) {
+      let p = null;
+      h.addEventListener("pointerdown", (e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        if (cfg.skip && e.target.closest(cfg.skip)) return;
+        p = { id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, onGrab: !!e.target.closest(".grab") };
+      });
+      h.addEventListener("pointermove", (e) => {
+        if (!p || e.pointerId !== p.id) return;
+        if (!p.moved) {
+          const dx = e.clientX - p.x0, dy = e.clientY - p.y0;
+          if (Math.abs(dy) < 7) return;
+          if (Math.abs(dx) > Math.abs(dy)) { p = null; return; }
+          p.moved = true;
+          try { h.setPointerCapture(e.pointerId); } catch (err) {}
+          if (document.activeElement && document.activeElement.blur && h.contains(document.activeElement)) document.activeElement.blur();
+          begin(p.y0);
+        }
+        move(e.clientY);
+      });
+      const up = (e) => {
+        if (!p || e.pointerId !== p.id) return;
+        const x = p; p = null;
+        if (x.moved) end();
+        else if (x.onGrab && e.type === "pointerup" && cfg.onGrabTap) cfg.onGrabTap();
+      };
+      h.addEventListener("pointerup", up);
+      h.addEventListener("pointercancel", up);
+    }
+    if (cfg.scroller) {
+      const sc = cfg.scroller;
+      let t = null;
+      sc.addEventListener("touchstart", (e) => {
+        t = null;
+        if (e.touches.length !== 1 || d || e.target.closest("textarea, input")) return;
+        t = { x0: e.touches[0].clientX, y0: e.touches[0].clientY, decided: false, active: false };
+      }, { passive: true });
+      sc.addEventListener("touchmove", (e) => {
+        if (!t) return;
+        const x = e.touches[0].clientX, y = e.touches[0].clientY;
+        if (!t.decided) {
+          const dx = x - t.x0, dy = y - t.y0;
+          if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+          t.decided = true;
+          if (Math.abs(dx) > Math.abs(dy)) { t = null; return; }
+          const atTop = sc.scrollTop <= 0;
+          if ((dy > 0 && atTop && cfg.pullDown(S.state)) || (dy < 0 && cfg.pullUp(S.state))) { t.active = true; begin(t.y0); }
+          else { t = null; return; }
+        }
+        if (t.active) { if (e.cancelable) e.preventDefault(); move(y); }
+      }, { passive: false });
+      const tend = () => { if (t && t.active && d) end(); t = null; };
+      sc.addEventListener("touchend", tend);
+      sc.addEventListener("touchcancel", tend);
+    }
+    return S;
+  }
+
+  /* ---------- Liste (zu / ganz offen) ---------- */
+  const sheet = $("#sheet"), shHead = $("#shHead"), qEl = $("#q"), listEl = $("#list");
+  const listCtl = makeSheet(sheet, {
+    initial: "peek", handles: [shHead], scroller: listEl,
+    states: () => ({ full: 0, peek: Math.max(0, Hpx - peekPx) }),
+    pullDown: (st) => st === "full", pullUp: () => false,
+    onGrabTap: () => listCtl.set(listCtl.state === "peek" ? "full" : "peek"),
+    onSet: (st) => { document.body.dataset.sheet = st; if (st === "peek" && document.activeElement === qEl) qEl.blur(); }
+  });
+  qEl.addEventListener("focus", () => { if (listCtl.state !== "full") listCtl.set("full"); });
+
+  /* ---------- Detail (kompakt / hochgewischt) ---------- */
+  const detailEl = $("#detail"), dHead = $("#dHead"), dScroll = $("#dScroll"), dCompact = $("#dCompact");
+  let detailNr = null, sheetBefore = null;
+  const compactPx = () => dHead.offsetHeight + dCompact.offsetHeight + probe.offsetHeight + 10;
+  const detCtl = makeSheet(detailEl, {
+    initial: "closed", handles: [dHead], scroller: dScroll, skip: "button, a, input",
+    states: () => ({ full: 0, compact: Math.max(0, Hpx - compactPx()), closed: Hpx + 40 }),
+    pullDown: (st) => st !== "closed", pullUp: (st) => st === "compact",
+    onGrabTap: () => detCtl.set(detCtl.state === "compact" ? "full" : "compact"),
+    onSet: (st, prev) => {
+      detailEl.inert = st === "closed";
+      if (st === "full" && prev !== "full") paintJournal();
+      if (st !== "full") dScroll.scrollTop = 0;
+      if (st === "closed" && prev !== "closed") onDetailClosed();
+    }
+  });
+
+  function layoutAll() {
     const vh = window.innerHeight;
-    const topGap = topbar.getBoundingClientRect().bottom + 10;
-    const H = Math.max(240, vh - topGap);
-    const peek = shHead.offsetHeight + probe.offsetHeight + 2;
-    Y = { full: 0, half: Math.max(0, Math.round(H - vh * 0.55)), peek: Math.max(0, H - peek) };
-    root.style.setProperty("--sheetH", H + "px");
-    root.style.setProperty("--peekH", peek + "px");
-    applySheet();
+    Hpx = Math.max(260, vh - (topbar.getBoundingClientRect().bottom + 10));
+    peekPx = shHead.offsetHeight + probe.offsetHeight + 2;
+    root.style.setProperty("--sheetH", Hpx + "px");
+    root.style.setProperty("--peekH", peekPx + "px");
+    listCtl.layout(); detCtl.layout();
   }
-  function applySheet() {
-    sheet.style.setProperty("--y", Y[sheetState] + "px");
-    sheet.style.setProperty("--ypad", Y[sheetState] + "px");
-    document.body.dataset.sheet = sheetState;
-  }
-  function setSheet(st) { sheetState = st; applySheet(); }
+  window.addEventListener("resize", layoutAll);
 
-  let drag = null;
-  shHead.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, base: Y[sheetState], moved: false, v: 0, lastY: e.clientY, lastT: performance.now(), cur: Y[sheetState], onGrab: !!e.target.closest(".grab") };
-  });
-  shHead.addEventListener("pointermove", (e) => {
-    if (!drag || e.pointerId !== drag.id) return;
-    const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
-    if (!drag.moved) {
-      if (Math.abs(dy) < 7) return;
-      if (Math.abs(dx) > Math.abs(dy)) { drag = null; return; }
-      drag.moved = true; sheet.classList.add("drag");
-      try { shHead.setPointerCapture(e.pointerId); } catch (err) {}
-      if (document.activeElement === qEl) qEl.blur();
-    }
-    let y = drag.base + dy;
-    if (y < 0) y = y / 3;
-    if (y > Y.peek) y = Y.peek + (y - Y.peek) / 3;
-    drag.cur = y;
-    sheet.style.setProperty("--y", y + "px");
-    const now = performance.now();
-    drag.v = (e.clientY - drag.lastY) / Math.max(1, now - drag.lastT);
-    drag.lastY = e.clientY; drag.lastT = now;
-  });
-  function endDrag(e) {
-    if (!drag || e.pointerId !== drag.id) return;
-    const d = drag; drag = null;
-    if (!d.moved) { if (d.onGrab) setSheet(sheetState === "peek" ? "half" : "peek"); return; }
-    sheet.classList.remove("drag");
-    const order = ["full", "half", "peek"].sort((a, b) => Y[a] - Y[b]);
-    let next;
-    if (d.v > 0.45) next = order.find((s) => Y[s] > d.cur + 4) || "peek";
-    else if (d.v < -0.45) next = [...order].reverse().find((s) => Y[s] < d.cur - 4) || "full";
-    else next = order.reduce((a, b) => Math.abs(Y[a] - d.cur) <= Math.abs(Y[b] - d.cur) ? a : b);
-    setSheet(next);
+  /* ---------- Zurück-Taste & Überlagerungen ---------- */
+  const scrim = $("#scrim"), awardsEl = $("#awardsPanel"), dataEl = $("#dataPanel"), viewer = $("#viewer");
+  let openEl = null, pushed = false, ignorePop = 0;
+  const anyOverlay = () => !viewer.hidden || !!openEl || detCtl.state !== "closed";
+  function pushNav() { if (!pushed) { try { history.pushState({ hwn: 1 }, ""); pushed = true; } catch (e) {} } }
+  function afterClose(fromPop) {
+    if (anyOverlay()) { if (fromPop) pushNav(); }
+    else if (pushed && !fromPop) { pushed = false; ignorePop++; history.back(); }
   }
-  shHead.addEventListener("pointerup", endDrag);
-  shHead.addEventListener("pointercancel", (e) => { if (drag && drag.moved) endDrag(e); else drag = null; });
-  qEl.addEventListener("focus", () => setSheet("full"));
-  window.addEventListener("resize", layoutSheet);
+  let closingFromPop = false;
+  window.addEventListener("popstate", () => {
+    if (ignorePop) { ignorePop--; return; }
+    pushed = false;
+    if (!viewer.hidden) closeViewer(true);
+    else if (openEl) closePanel(true);
+    else if (detCtl.state !== "closed") { closingFromPop = true; detCtl.set("closed"); closingFromPop = false; }
+  });
 
-  /* ---------- Panels: Detail, Abzeichen, Daten ---------- */
-  const scrim = $("#scrim"), detailEl = $("#detail"), awardsEl = $("#awardsPanel"), dataEl = $("#dataPanel");
-  let openEl = null, sheetBefore = null, pushed = false, ignorePop = 0;
-  function openPanel(el, withScrim) {
-    if (openEl && openEl !== el) {
-      openEl.classList.remove("open");
-      if (openEl === detailEl) setSel(null);
-    }
+  function openPanel(el) {
+    if (openEl && openEl !== el) openEl.classList.remove("open");
     el.style.setProperty("--py", "0px");
-    el.classList.add("open");
-    scrim.classList.toggle("on", !!withScrim);
-    if (withScrim) hideToast();
-    openEl = el;
-    if (!pushed) { try { history.pushState({ hwn: 1 }, ""); pushed = true; } catch (e) {} }
+    el.classList.add("open"); scrim.classList.add("on"); hideToast();
+    openEl = el; pushNav();
   }
   function closePanel(fromPop) {
     if (!openEl) return;
-    const was = openEl; openEl = null;
-    was.classList.remove("open"); scrim.classList.remove("on");
-    if (was === detailEl) { detailNr = null; setSel(null); if (sheetBefore) { setSheet(sheetBefore); sheetBefore = null; } }
-    if (pushed && !fromPop) { pushed = false; ignorePop++; history.back(); } else pushed = false;
+    openEl.classList.remove("open"); scrim.classList.remove("on"); openEl = null;
+    afterClose(fromPop);
   }
-  window.addEventListener("popstate", () => {
-    if (ignorePop) { ignorePop--; return; }
-    pushed = false; if (openEl) closePanel(true);
-  });
   scrim.addEventListener("click", () => closePanel());
   document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => closePanel()));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && openEl) closePanel(); });
-
-  for (const el of [detailEl, awardsEl, dataEl]) {
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!viewer.hidden) closeViewer(); else if (openEl) closePanel(); else if (detCtl.state !== "closed") detCtl.set("closed");
+  });
+  for (const el of [awardsEl, dataEl]) {
     const head = el.querySelector(".p-head");
     let d = null;
     head.addEventListener("pointerdown", (e) => {
@@ -946,23 +1157,32 @@ function parseGpxWith(parseXml, text, fileName) {
     head.addEventListener("pointercancel", up);
   }
 
-  /* ---------- Detail ---------- */
-  let detailNr = null;
+  /* ---------- Detail füllen ---------- */
   const dStamp = $("#dStamp"), dDate = $("#dDate");
   function openDetail(nr, from) {
-    if (from === "list" && openEl !== detailEl && !sheetBefore) sheetBefore = sheetState;
+    if (from === "list" && detCtl.state === "closed" && !sheetBefore) sheetBefore = listCtl.state;
     detailNr = nr;
     paintDetail();
-    setSheet("peek");
-    openPanel(detailEl, false);
-    setSel(nr);
+    if (listCtl.state !== "peek") listCtl.set("peek");
+    detCtl.layout();
+    detCtl.set("compact");
+    setSel(nr); pushNav();
     requestAnimationFrame(() => showOnMap(nr, from !== "map"));
   }
+  function onDetailClosed() {
+    detailNr = null; setSel(null);
+    if (sheetBefore) { listCtl.set(sheetBefore); sheetBefore = null; }
+    afterClose(closingFromPop);
+  }
+  $("#dClose").addEventListener("click", () => detCtl.set("closed"));
+  $("#dMore").addEventListener("click", () => detCtl.set(detCtl.state === "full" ? "compact" : "full"));
+
   function paintDetail() {
     const nr = detailNr; if (!nr) return;
     const s = byNr.get(nr), p = posOf(nr), done = !!collected[nr];
     $("#dNr").textContent = "Stempel " + pad(nr);
-    $("#dTag").hidden = !STEIGER.has(nr);
+    $("#dTagM").hidden = !STEIGER.has(nr);
+    $("#dTagNp").hidden = !s.nph;
     $("#dName").textContent = s.name;
     const dist = me && p ? distTxt(distKm(p)) : "";
     $("#dMeta").textContent = s.ort + (dist ? ` · ${dist} entfernt` : "");
@@ -971,9 +1191,13 @@ function parseGpxWith(parseXml, text, fileName) {
     $("#dDateRow").hidden = !done;
     dDate.max = todayIso(); dDate.value = collected[nr] || "";
     $("#dInfo").href = linkOf(s);
-    const r = $("#dRoute");
-    r.hidden = !p; if (p) r.href = komootOf(p);
-    $("#dSrc").textContent = !p ? "Für diese Stelle ist noch keine Position bekannt." : (p.src === "gpx" ? "Position: offizielle GPS-Daten" : "Position: OpenStreetMap");
+    const r = routeFor(nr), ra = $("#dRoute");
+    ra.hidden = !r;
+    if (r) { ra.href = r.href; $("#dRouteLbl").textContent = r.label; }
+    $("#dSrc").textContent = !p ? "Für diese Stelle ist noch keine Position bekannt." :
+      "Position: " + ({ gpx: "offizielle GPS-Daten", osm: "OpenStreetMap", komoot: "komoot" })[p.src] + (komootFor(nr) ? " · Route über komoot-Highlight" : "");
+    paintMoreSummary();
+    if (detCtl.state !== "closed") detCtl.layout();
   }
   dStamp.addEventListener("click", () => {
     if (!detailNr) return;
@@ -987,22 +1211,185 @@ function parseGpxWith(parseXml, text, fileName) {
     const p = posOf(nr); if (!p) return;
     const z = zoomIn ? Math.max(map.getZoom(), 14) : map.getZoom();
     const vh = window.innerHeight;
-    /* offsetHeight statt getBoundingClientRect: das Panel fährt gerade noch ein */
-    const panelTop = openEl ? vh - openEl.offsetHeight : vh - (parseFloat(getComputedStyle(root).getPropertyValue("--peekH")) || 150);
+    const panelTop = vh - compactPx();
     const top = topbar.getBoundingClientRect().bottom;
     const targetY = top + Math.max(60, panelTop - top) / 2;
     const pt = map.project([p.lat, p.lon], z).add([0, vh / 2 - targetY]);
     map.flyTo(map.unproject(pt, z), z, { duration: zoomIn && z !== map.getZoom() ? 0.8 : 0.45 });
   }
-  map.on("click", () => { if (openEl === detailEl) closePanel(); else if (sheetState !== "peek") setSheet("peek"); });
+  map.on("click", () => {
+    if (detCtl.state !== "closed") detCtl.set("closed");
+    else if (listCtl.state !== "peek") listCtl.set("peek");
+  });
+
+  /* ---------- Tagebuch: Bewertung & Notizen ---------- */
+  const jOf = (nr) => journal[nr] || { r: 0, notes: [] };
+  function saveJournal() {
+    for (const k of Object.keys(journal)) { const j = journal[k]; if (!j.r && !(j.notes && j.notes.length)) delete journal[k]; }
+    if (!LS.set(K.journal, journal)) toast("Speichern nicht möglich. Bitte eine Sicherung erstellen.");
+  }
+  function ensureJ(nr) { return journal[nr] || (journal[nr] = { r: 0, notes: [] }); }
+  const dStars = $("#dStars");
+  dStars.innerHTML = [1, 2, 3, 4, 5].map((n) => `<button type="button" class="star" data-r="${n}" role="radio" aria-label="${n} von 5 Sternen">${ICON_STAR}</button>`).join("");
+  dStars.addEventListener("click", (e) => {
+    const b = e.target.closest(".star"); if (!b || !detailNr) return;
+    const j = ensureJ(detailNr), r = +b.dataset.r;
+    j.r = j.r === r ? 0 : r;
+    saveJournal(); paintStars(); paintMoreSummary(); updateRow(detailNr);
+    try { navigator.vibrate && navigator.vibrate(8); } catch (err) {}
+  });
+  function paintStars() {
+    const r = jOf(detailNr).r || 0;
+    dStars.querySelectorAll(".star").forEach((b) => { const on = +b.dataset.r <= r; b.classList.toggle("on", on); b.setAttribute("aria-checked", +b.dataset.r === r); });
+  }
+  const dNotes = $("#dNotes"), dNoteText = $("#dNoteText");
+  function paintNotes() {
+    const notes = jOf(detailNr).notes || [];
+    dNotes.textContent = "";
+    for (const n of notes.slice().reverse()) {
+      const li = document.createElement("li"); li.className = "note";
+      const div = document.createElement("div");
+      const sm = document.createElement("small");
+      const dt = new Date(n.d);
+      sm.textContent = isNaN(dt) ? "" : dt.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) + ", " + dt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+      const pEl = document.createElement("p"); pEl.textContent = n.t;
+      div.append(sm, pEl);
+      const del = document.createElement("button"); del.type = "button"; del.className = "del"; del.setAttribute("aria-label", "Notiz löschen"); del.innerHTML = ICON_X;
+      del.addEventListener("click", () => deleteNote(detailNr, n.id));
+      li.append(div, del); dNotes.appendChild(li);
+    }
+  }
+  $("#dNoteAdd").addEventListener("click", () => {
+    const t = dNoteText.value.trim();
+    if (!detailNr) return;
+    if (!t) { dNoteText.focus(); return; }
+    ensureJ(detailNr).notes.push({ id: uid(), d: new Date().toISOString(), t });
+    saveJournal(); dNoteText.value = ""; dNoteText.blur();
+    paintNotes(); paintMoreSummary(); toast("Eintrag gespeichert");
+  });
+  function deleteNote(nr, id) {
+    const j = ensureJ(nr), i = j.notes.findIndex((n) => n.id === id); if (i < 0) return;
+    const [removed] = j.notes.splice(i, 1);
+    saveJournal(); if (detailNr === nr) { paintNotes(); paintMoreSummary(); }
+    toast("Notiz gelöscht", { label: "Rückgängig", fn: () => { ensureJ(nr).notes.splice(i, 0, removed); saveJournal(); if (detailNr === nr) { paintNotes(); paintMoreSummary(); } } });
+  }
+
+  /* ---------- Fotos (IndexedDB, verkleinert) ---------- */
+  const DB = (() => {
+    let p = null;
+    const open = () => p || (p = new Promise((res, rej) => {
+      const r = indexedDB.open("hwn-fotos", 1);
+      r.onupgradeneeded = () => { const s = r.result.createObjectStore("photos", { keyPath: "id" }); s.createIndex("nr", "nr"); };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => { p = null; rej(r.error); };
+    }));
+    const run = (mode, fn) => open().then((db) => new Promise((res, rej) => {
+      const tx = db.transaction("photos", mode), req = fn(tx.objectStore("photos"));
+      tx.oncomplete = () => res(req ? req.result : undefined);
+      tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+    }));
+    return {
+      put: (rec) => run("readwrite", (s) => s.put(rec)),
+      del: (id) => run("readwrite", (s) => s.delete(id)),
+      byNr: (nr) => run("readonly", (s) => s.index("nr").getAll(nr)),
+      count: (nr) => run("readonly", (s) => s.index("nr").count(nr)),
+      all: () => run("readonly", (s) => s.getAll())
+    };
+  })();
+  function shrink(file, max = 1600) {
+    return new Promise((res) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => res(b || file), "image/jpeg", 0.82);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); res(file); };
+      img.src = url;
+    });
+  }
+  const dPhotos = $("#dPhotos"), dPhotoFile = $("#dPhotoFile");
+  let thumbUrls = [], photoCount = 0, photoList = [];
+  async function paintPhotos() {
+    const nr = detailNr; if (!nr) return;
+    let list = [];
+    try { list = await DB.byNr(nr); } catch (e) { list = []; }
+    if (nr !== detailNr) return;
+    list.sort((a, b) => (a.created < b.created ? -1 : 1));
+    thumbUrls.forEach((u) => URL.revokeObjectURL(u)); thumbUrls = [];
+    photoList = list; photoCount = list.length;
+    dPhotos.textContent = "";
+    list.forEach((rec, i) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "ph"; b.setAttribute("aria-label", `Foto ${i + 1} öffnen`);
+      const u = URL.createObjectURL(rec.blob); thumbUrls.push(u);
+      const im = document.createElement("img"); im.src = u; im.alt = ""; im.loading = "lazy";
+      b.appendChild(im); b.addEventListener("click", () => openViewer(rec));
+      dPhotos.appendChild(b);
+    });
+    const add = document.createElement("button"); add.type = "button"; add.className = "ph add";
+    add.innerHTML = ICON_CAM + "Foto hinzufügen";
+    add.addEventListener("click", () => dPhotoFile.click());
+    dPhotos.appendChild(add);
+    paintMoreSummary();
+  }
+  dPhotoFile.addEventListener("change", async (e) => {
+    const files = [...e.target.files]; e.target.value = "";
+    const nr = detailNr; if (!files.length || !nr) return;
+    let ok = 0;
+    for (const f of files) {
+      try { const blob = await shrink(f); await DB.put({ id: uid(), nr, created: new Date().toISOString(), blob }); ok++; }
+      catch (err) { /* einzelnes Foto überspringen */ }
+    }
+    if (ok) { try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (err) {} }
+    toast(ok ? (ok === 1 ? "Foto gespeichert" : `${ok} Fotos gespeichert`) : "Fotos können auf diesem Gerät nicht gespeichert werden.");
+    if (nr === detailNr) paintPhotos();
+  });
+  let viewerRec = null, viewerUrl = null;
+  function openViewer(rec) {
+    viewerRec = rec; viewerUrl = URL.createObjectURL(rec.blob);
+    $("#vImg").src = viewerUrl;
+    const d = new Date(rec.created);
+    $("#vDate").textContent = isNaN(d) ? "" : "Aufgenommen am " + d.toLocaleDateString("de-DE");
+    viewer.hidden = false; pushNav();
+  }
+  function closeViewer(fromPop) {
+    if (viewer.hidden) return;
+    viewer.hidden = true; $("#vImg").removeAttribute("src");
+    if (viewerUrl) URL.revokeObjectURL(viewerUrl); viewerUrl = null; viewerRec = null;
+    afterClose(fromPop);
+  }
+  $("#vClose").addEventListener("click", () => closeViewer());
+  $("#vDel").addEventListener("click", async () => {
+    const rec = viewerRec; if (!rec) return;
+    closeViewer();
+    try { await DB.del(rec.id); } catch (e) { toast("Foto konnte nicht gelöscht werden."); return; }
+    paintPhotos();
+    toast("Foto gelöscht", { label: "Rückgängig", fn: async () => { await DB.put(rec); if (detailNr === rec.nr) paintPhotos(); } });
+  });
+
+  function paintJournal() { paintStars(); paintNotes(); paintPhotos(); }
+  async function paintMoreSummary() {
+    const nr = detailNr; if (!nr) return;
+    const j = jOf(nr);
+    let pc = photoCount;
+    if (!photoList.length || photoList[0]?.nr !== nr) { try { pc = await DB.count(nr); } catch (e) { pc = 0; } }
+    if (nr !== detailNr) return;
+    const parts = [];
+    if (j.r) parts.push("★".repeat(j.r) + "☆".repeat(5 - j.r));
+    if (j.notes && j.notes.length) parts.push(j.notes.length === 1 ? "1 Notiz" : `${j.notes.length} Notizen`);
+    if (pc) parts.push(pc === 1 ? "1 Foto" : `${pc} Fotos`);
+    $("#dMoreSum").textContent = parts.length ? parts.join(" · ") : "Hochwischen oder hier tippen";
+  }
 
   /* ---------- Stempel setzen ---------- */
-  function save() { if (!LS.set(K.done, collected)) toast("Speichern nicht möglich. Bitte unter „Daten & Sicherung“ eine Sicherung anlegen."); }
+  function save() { if (!LS.set(K.done, collected)) toast("Speichern nicht möglich. Bitte eine Sicherung erstellen."); }
   const countDone = () => Object.keys(collected).filter((k) => byNr.has(+k)).length;
   const reqDone = (a) => a.req ? [...a.req].filter((n) => collected[n]).length : 0;
   const needFor = (a, c) => Math.max(a.n - c, a.req ? a.req.size - reqDone(a) : 0, 0);
   const reachedSet = () => { const c = countDone(); return new Set(AWARDS.filter((a) => needFor(a, c) === 0).map((a) => a.name)); };
-
   function setDone(nr, on, opts = {}) {
     const prev = collected[nr];
     const before = reachedSet();
@@ -1020,14 +1407,13 @@ function parseGpxWith(parseXml, text, fileName) {
   }
 
   /* ---------- Liste ---------- */
-  const listEl = $("#list");
   const rows = new Map();
   for (const s of byNr.values()) {
     const li = document.createElement("li");
     li.className = "row"; li.dataset.nr = s.nr;
     li.innerHTML = `<button type="button" class="row-main"><span class="badge">${s.nr}${STEIGER.has(s.nr) ? `<span class="bm" title="Steiger-Pflicht">${MINER}</span>` : ""}</span><span class="row-t"><b></b><small></small></span></button><button type="button" class="tog" aria-pressed="false" aria-label="Nr. ${s.nr} gestempelt"><span>${ICON_CHECK}</span></button>`;
     li.querySelector("b").textContent = s.name;
-    li._search = `${s.nr} ${pad(s.nr)} ${s.name} ${s.ort}${STEIGER.has(s.nr) ? " steiger bergbau" : ""}`.toLowerCase();
+    li._search = `${s.nr} ${pad(s.nr)} ${s.name} ${s.ort}${STEIGER.has(s.nr) ? " steiger bergbau" : ""}${s.nph ? " nationalpark nph" : ""}`.toLowerCase();
     rows.set(s.nr, li); listEl.appendChild(li);
   }
   const emptyEl = document.createElement("li");
@@ -1039,23 +1425,22 @@ function parseGpxWith(parseXml, text, fileName) {
     if (e.target.closest(".tog")) setDone(nr, !collected[nr]);
     else if (e.target.closest(".row-main")) openDetail(nr, "list");
   });
-
   function updateRow(nr) {
     const li = rows.get(nr); if (!li) return;
-    const d = collected[nr], s = byNr.get(nr), p = posOf(nr);
+    const d = collected[nr], s = byNr.get(nr), p = posOf(nr), r = (journal[nr] && journal[nr].r) || 0;
     li.classList.toggle("done", !!d);
     li.querySelector(".tog").setAttribute("aria-pressed", !!d);
     const small = li.querySelector("small");
-    small.textContent = s.ort;
+    small.textContent = s.ort + (s.nph ? " · Nationalpark" : "");
     if (me && p) small.append(" · " + distTxt(distKm(p)));
+    if (r) { const st = document.createElement("span"); st.className = "st"; st.textContent = ` · ★${r}`; small.appendChild(st); }
     if (d) { const sp = document.createElement("span"); sp.className = "d"; sp.textContent = " · ✓ " + fmtDate(d).replace(/\.(\d\d)(\d\d)$/, ".$2"); small.appendChild(sp); }
     if (!p) { const em = document.createElement("em"); em.textContent = " · keine Position"; small.appendChild(em); }
   }
   const updateAllRows = () => { for (const nr of byNr.keys()) updateRow(nr); };
-
   let orderKey = "";
   function reorder() {
-    let order = [...byNr.keys()];
+    const order = [...byNr.keys()];
     if (nearMode && me) order.sort((a, b) => (posOf(a) ? distKm(posOf(a)) : 1e9) - (posOf(b) ? distKm(posOf(b)) : 1e9));
     const key = order.join(",");
     if (key === orderKey) return;
@@ -1065,7 +1450,6 @@ function parseGpxWith(parseXml, text, fileName) {
     frag.appendChild(emptyEl);
     listEl.appendChild(frag);
   }
-
   function applyFilter() {
     mapEl.classList.toggle("f-open", filter === "open");
     mapEl.classList.toggle("f-done", filter === "done");
@@ -1091,7 +1475,7 @@ function parseGpxWith(parseXml, text, fileName) {
   }));
   const steigerChip = $("#steigerChip"), nearChip = $("#nearChip");
   function setSteiger(on) { steigerOnly = on; steigerChip.setAttribute("aria-pressed", on); applyFilter(); }
-  steigerChip.addEventListener("click", () => { setSteiger(!steigerOnly); if (steigerOnly && sheetState === "peek") fitTo([...STEIGER]); });
+  steigerChip.addEventListener("click", () => { setSteiger(!steigerOnly); if (steigerOnly && listCtl.state === "peek") fitTo([...STEIGER]); });
   function setNear(on) {
     nearMode = on; nearChip.setAttribute("aria-pressed", on);
     if (on && !me) { toast("Suche deinen Standort …"); startLocate(false); }
@@ -1102,12 +1486,7 @@ function parseGpxWith(parseXml, text, fileName) {
   /* ---------- Standort ---------- */
   let me = null, meMarker = null, watching = false, centerOnFix = false, resumeLoc = false, lastRowLoc = null;
   const locBtn = $("#locBtn");
-  function distKm(p) {
-    const R = 6371, toR = Math.PI / 180;
-    const dLat = (p.lat - me.lat) * toR, dLon = (p.lon - me.lng) * toR;
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(me.lat * toR) * Math.cos(p.lat * toR) * Math.sin(dLon / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(a));
-  }
+  const distKm = (p) => hav({ lat: me.lat, lon: me.lng }, p);
   const distTxt = (km) => km < 1 ? `${Math.round(km * 100) * 10} m` : km < 10 ? `${km.toFixed(1).replace(".", ",")} km` : `${Math.round(km)} km`;
   function startLocate(center) {
     centerOnFix = center || centerOnFix;
@@ -1147,7 +1526,7 @@ function parseGpxWith(parseXml, text, fileName) {
   $("#showSteiger").addEventListener("click", () => {
     closePanel(); setSteiger(true); filter = "all";
     document.querySelectorAll(".chip[data-f]").forEach((x) => x.setAttribute("aria-pressed", x.dataset.f === "all"));
-    applyFilter(); setSheet("peek"); setTimeout(() => fitTo([...STEIGER]), 350);
+    applyFilter(); listCtl.set("peek"); setTimeout(() => fitTo([...STEIGER]), 350);
   });
   const RING = 2 * Math.PI * 19;
   function updateProgress() {
@@ -1170,16 +1549,19 @@ function parseGpxWith(parseXml, text, fileName) {
         : (need === 0 ? `${a.n} Stempel · erreicht` : `${a.n} Stempel · noch ${need}`);
     });
   }
-  $("#progBtn").addEventListener("click", () => openPanel(awardsEl, true));
-  $("#menuBtn").addEventListener("click", () => openPanel(dataEl, true));
+  $("#progBtn").addEventListener("click", () => openPanel(awardsEl));
+  $("#menuBtn").addEventListener("click", () => openPanel(dataEl));
 
   /* ---------- Statuszeile ---------- */
   function updateStatus(extra) {
-    const have = STAMPS.filter((s) => posOf(s[0])).length;
-    const missing = STAMPS.filter((s) => !posOf(s[0])).map((s) => s[0]);
+    const pos = STAMPS.map((s) => posOf(s[0]));
+    const have = pos.filter(Boolean).length;
+    const missing = STAMPS.filter((s, i) => !pos[i]).map((s) => s[0]);
     const src = [];
-    if (gpx) src.push(`offizielle GPS-Daten (${Object.keys(gpx.pts).length} Stellen)`);
-    if (osm) src.push(`OpenStreetMap (Stand ${fmtDate(osm.fetched)})`);
+    if (gpx) src.push(`offizielle GPS-Daten (${Object.keys(gpx.pts).length})`);
+    if (osm) src.push(`OpenStreetMap (${Object.keys(osm.pts).length}, Stand ${fmtDate(osm.fetched)})`);
+    const fromK = pos.filter((p) => p && p.src === "komoot").length;
+    if (fromK) src.push(`komoot (${fromK})`);
     let html = `<b>${have} von 222</b> Stellen auf der Karte` + (src.length ? ` · ${src.join(" + ")}` : "");
     if (missing.length && missing.length < 222) html += `<br>Ohne Position: ${missing.length > 30 ? missing.slice(0, 30).join(", ") + " …" : missing.join(", ")}`;
     if (extra) html += `<br>${extra}`;
@@ -1199,36 +1581,39 @@ function parseGpxWith(parseXml, text, fileName) {
         if (!r.ok) throw new Error("HTTP " + r.status);
         const pts = parseOsm((await r.json()).elements);
         if (Object.keys(pts).length < 20) throw new Error("zu wenige Treffer");
-        const first = !osm;
         osm = { fetched: new Date().toISOString(), pts };
         LS.set(K.osm, osm);
         renderMarkers(); updateAllRows(); updateStatus();
-        if (first && !saved) fitTo();
+        if (detailNr) paintDetail();
         if (manual) toast(`${Object.keys(pts).length} Positionen geladen.`);
         loading = false; return;
       } catch (e) { /* nächsten Server versuchen */ }
     }
     loading = false;
-    updateStatus(osm ? "OpenStreetMap gerade nicht erreichbar – gespeicherte Positionen werden genutzt." : "OpenStreetMap gerade nicht erreichbar. Später erneut versuchen oder offizielle GPX/ZIP laden.");
-    if (manual || !osm) toast("Positionen konnten nicht geladen werden.");
+    updateStatus(osm ? "OpenStreetMap gerade nicht erreichbar – gespeicherte Positionen werden genutzt." : "OpenStreetMap gerade nicht erreichbar – Positionen von komoot werden genutzt.");
+    if (manual) toast("Positionen konnten nicht geladen werden.");
   }
   function fitTo(nrs) {
     const ll = []; for (const [nr, m] of markers) if (!nrs || nrs.includes(nr)) ll.push(m.getLatLng());
     if (!ll.length) return;
     const top = topbar.getBoundingClientRect().bottom + 16;
-    const bottom = (parseFloat(getComputedStyle(root).getPropertyValue("--peekH")) || 150) + 24;
-    map.fitBounds(L.latLngBounds(ll), { paddingTopLeft: [24, top], paddingBottomRight: [24, bottom] });
+    map.fitBounds(L.latLngBounds(ll), { paddingTopLeft: [24, top], paddingBottomRight: [24, peekPx + 24] });
   }
   $("#refreshOsm").addEventListener("click", () => loadOsm(true));
 
   /* ---------- Offizielle GPX/ZIP ---------- */
   const xml = (t) => new DOMParser().parseFromString(t, "application/xml");
+  /* ZIP am Dateiinhalt erkennen – Dateinamen gehen beim Teilen/Speichern auf dem Handy oft verloren */
+  async function isZip(f) {
+    try { const h = new Uint8Array(await f.slice(0, 2).arrayBuffer()); return h[0] === 0x50 && h[1] === 0x4B; }
+    catch (e) { return /\.zip$/i.test(f.name); }
+  }
   $("#gpxBtn").addEventListener("click", () => $("#gpxFile").click());
   $("#gpxFile").addEventListener("change", async (e) => {
     const f = e.target.files[0]; e.target.value = ""; if (!f) return;
     try {
       const found = [];
-      if (/\.zip$/i.test(f.name) || f.type.includes("zip")) {
+      if (await isZip(f)) {
         if (!window.JSZip) throw new Error("ZIP-Bibliothek nicht geladen");
         const zip = await JSZip.loadAsync(f);
         for (const z of Object.values(zip.files).filter((z) => !z.dir && /\.gpx$/i.test(z.name))) found.push(...parseGpxWith(xml, await z.async("string"), z.name));
@@ -1243,37 +1628,74 @@ function parseGpxWith(parseXml, text, fileName) {
     } catch (err) { toast("Datei konnte nicht gelesen werden: " + err.message); }
   });
 
-  /* ---------- Sicherung ---------- */
-  $("#exportBtn").addEventListener("click", async () => {
-    const data = { app: "harzer-stempelkarte", version: 1, exported: new Date().toISOString(), collected };
-    const name = `stempelkarte-sicherung-${todayIso()}.json`;
-    const blob = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" });
+  /* ---------- Sicherung (ZIP mit Stempeln, Tagebuch und Fotos) ---------- */
+  async function share(blob, name, type) {
     try {
-      const file = new File([blob], name, { type: "application/json" });
+      const file = new File([blob], name, { type });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "Stempelkarte – Sicherung" }); return; }
     } catch (err) { if (err && err.name === "AbortError") return; }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  $("#exportBtn").addEventListener("click", async () => {
+    let photos = [];
+    try { photos = await DB.all(); } catch (e) { photos = []; }
+    const meta = {
+      app: "harzer-stempelkarte", version: 2, exported: new Date().toISOString(), collected, journal,
+      photos: photos.map((p) => ({ id: p.id, nr: p.nr, created: p.created, file: `fotos/${pad(p.nr)}-${p.id}.jpg` }))
+    };
+    const name = `stempelkarte-sicherung-${todayIso()}`;
+    if (window.JSZip) {
+      toast("Sicherung wird erstellt …");
+      const zip = new JSZip();
+      zip.file("sicherung.json", JSON.stringify(meta, null, 1));
+      photos.forEach((p, i) => zip.file(meta.photos[i].file, p.blob));
+      const blob = await zip.generateAsync({ type: "blob" });
+      await share(blob, name + ".zip", "application/zip");
+    } else {
+      await share(new Blob([JSON.stringify(meta, null, 1)], { type: "application/json" }), name + ".json", "application/json");
+      if (photos.length) toast("Fotos konnten nicht mitgesichert werden (ZIP-Bibliothek fehlt).");
+    }
   });
   $("#importBtn").addEventListener("click", () => $("#importFile").click());
   $("#importFile").addEventListener("change", async (e) => {
     const f = e.target.files[0]; e.target.value = ""; if (!f) return;
     try {
-      const j = JSON.parse(await f.text());
-      const src = j.collected || j;
-      let added = 0;
+      let meta, zip = null;
+      if (await isZip(f)) {
+        if (!window.JSZip) throw new Error("ZIP-Bibliothek nicht geladen");
+        zip = await JSZip.loadAsync(f);
+        const j = zip.file("sicherung.json"); if (!j) throw new Error("keine sicherung.json");
+        meta = JSON.parse(await j.async("string"));
+      } else meta = JSON.parse(await f.text());
+      const src = meta.collected || meta;
+      let added = 0, notes = 0, pics = 0;
       for (const k in src) {
         const nr = +k;
         if (!validNr(nr) || collected[nr]) continue;
         collected[nr] = typeof src[k] === "string" && /^\d{4}-\d{2}-\d{2}/.test(src[k]) ? src[k].slice(0, 10) : todayIso();
         added++;
       }
-      save();
+      for (const k in (meta.journal || {})) {
+        const nr = +k; if (!validNr(nr)) continue;
+        const inJ = meta.journal[k], j = ensureJ(nr);
+        if (!j.r && inJ.r) j.r = inJ.r;
+        for (const n of inJ.notes || []) if (n && n.id && !j.notes.some((x) => x.id === n.id)) { j.notes.push(n); notes++; }
+      }
+      if (zip && meta.photos) {
+        let have = new Set(); try { have = new Set((await DB.all()).map((p) => p.id)); } catch (err) {}
+        for (const p of meta.photos) {
+          if (have.has(p.id) || !validNr(p.nr)) continue;
+          const zf = zip.file(p.file); if (!zf) continue;
+          try { await DB.put({ id: p.id, nr: p.nr, created: p.created, blob: new Blob([await zf.async("arraybuffer")], { type: "image/jpeg" }) }); pics++; } catch (err) {}
+        }
+      }
+      save(); saveJournal();
       for (const nr of markers.keys()) refreshMarker(nr);
-      updateAllRows(); updateProgress(); applyFilter();
-      toast(added ? `${added} Stempel aus der Sicherung übernommen.` : "Keine neuen Stempel in der Sicherung.");
+      updateAllRows(); updateProgress(); applyFilter(); if (detailNr) paintDetail();
+      toast(added || notes || pics ? `Übernommen: ${added} Stempel, ${notes} Notizen, ${pics} Fotos.` : "Nichts Neues in der Sicherung.");
     } catch (err) { toast("Sicherung konnte nicht gelesen werden."); }
   });
 
@@ -1284,8 +1706,8 @@ function parseGpxWith(parseXml, text, fileName) {
 
   /* ---------- Start ---------- */
   renderMarkers(); updateAllRows(); updateProgress(); applyFilter(); updateStatus();
-  layoutSheet();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutSheet);
+  layoutAll();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutAll);
   const stale = !osm || (Date.now() - new Date(osm.fetched).getTime() > 14 * 864e5);
   if (stale) loadOsm(false);
 })();
