@@ -323,6 +323,7 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
 .stack .btn { justify-content: flex-start; padding: 8px 16px; gap: 14px; }
 .hint { margin: 16px 0 0; color: var(--muted); font-size: .88rem; }
 .hint a { color: var(--brand); font-weight: 600; }
+.ver { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; text-align: center; font-variant-numeric: tabular-nums; }
 
 /* ---------- Fotoansicht ---------- */
 .viewer { position: fixed; inset: 0; z-index: 1300; background: rgba(0, 0, 0, .94); display: flex; align-items: center; justify-content: center; }
@@ -473,6 +474,7 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
     <p class="hint">Stempel, Bewertungen, Notizen und Fotos liegen nur auf diesem Handy. „Sicherung erstellen“ packt alles in eine ZIP-Datei, die du in Dateien, iCloud/Drive oder per Nachricht ablegen kannst.</p>
     <p class="hint">Positionen kommen aus OpenStreetMap und werden einmal pro Woche automatisch aktualisiert. Genauer sind die <a href="https://www.harzer-wandernadel.de/stempelstellen/gps-download/" target="_blank" rel="noopener">offiziellen GPS-Daten</a>: ZIP herunterladen und hier einlesen.</p>
     <p class="hint">Schon angesehene Kartenbereiche funktionieren auch ohne Netz. Vor einer Tour also einmal im WLAN durch die Gegend zoomen.</p>
+    <p class="ver" id="ver"></p>
     <input type="file" id="gpxFile" accept=".gpx,.zip,.xml,application/gpx+xml,application/zip" hidden>
     <input type="file" id="importFile" accept=".zip,.json,application/zip,application/json" hidden>
   </div>
@@ -814,6 +816,9 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
 
 <script>
 (() => {
+  /* Bei jeder Änderung an der Seite hochzählen – wird unter „Daten & Sicherung“ angezeigt */
+  const APP_VERSION = { nr: 7, date: "2026-10-30" };
+
   /* ---------- Speicher (alte Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
   const LS = {
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
@@ -1723,6 +1728,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
   }
 
   /* ---------- Start ---------- */
+  $("#ver").textContent = `Harzer Stempelkarte · Version ${APP_VERSION.nr} vom ${fmtDate(APP_VERSION.date)}`;
   renderMarkers(); updateAllRows(); updateProgress(); applyFilter(); updateStatus();
   layoutAll();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutAll);
