@@ -2,7 +2,7 @@
    - Seite selbst: erst Netz, sonst Zwischenspeicher (Updates kommen sofort an)
    - Bibliotheken & Schriften: Zwischenspeicher zuerst
    - Kartenkacheln: nur bereits angesehene werden gespeichert (max. MAX_TILES) */
-const SHELL = "hwn-shell-v1";
+const SHELL = "hwn-shell-v2";
 const LIBS = "hwn-libs-v1";
 const TILES = "hwn-tiles-v1";
 const MAX_TILES = 4000;
