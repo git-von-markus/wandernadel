@@ -560,10 +560,9 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
     <div class="stack">
       <button class="btn primary" id="tCalc" type="button"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg><span id="tCalcLbl">Route berechnen</span></button>
       <button class="btn" id="tVia" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 3 21 12 12 21 3 12Z"/></svg>Wegpunkte setzen</button>
-      <button class="btn" id="tGpxFull" type="button" disabled><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>GPX für komoot</button>
+      <button class="btn" id="tGpxFull" type="button" disabled><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>GPX für Navigation</button>
       <button class="btn" id="tClear" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Tour leeren</button>
     </div>
-    <p class="hint">Reihenfolge ändern: einen Punkt am Griff links festhalten und an die gewünschte Stelle ziehen.</p>
     <p class="hint">Routing: <a href="https://brouter.de" target="_blank" rel="noopener">BRouter</a> (Wanderprofil), Daten © OpenStreetMap-Mitwirkende.</p>
   </div>
 </section>
@@ -927,7 +926,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
 <script>
 (() => {
   /* Version unten unter „Daten & Sicherung“: 1.x.y – x = größere Updates (z. B. Routen), y = kleine Fixes/Anpassungen */
-  const APP_VERSION = "1.2.0-beta.5";
+  const APP_VERSION = "1.2.0";
 
   /* ---------- Speicher (alte Schlüssel unverändert, damit Fortschritt erhalten bleibt) ---------- */
   const LS = {
@@ -1714,7 +1713,7 @@ const KOMOOT = [[1,76167,51.841348,10.57965,1],[2,138909,51.830116,10.602735,1],
     const br = tBody.getBoundingClientRect();
     if (e.clientY < br.top + 56) tBody.scrollTop -= 10; else if (e.clientY > br.bottom - 56) tBody.scrollTop += 10;
     const rf = sort.rects[sort.from], r0 = sort.rects[0], rN = sort.rects[sort.rects.length - 1];
-    const dy = Math.max(r0.top - rf.top, Math.min(rN.bottom - rf.bottom, e.clientY - sort.y0 + (tBody.scrollTop - sort.s0)));
+    const dy = Math.max(r0.top - rf.top - sort.h * 0.6, Math.min(rN.bottom - rf.bottom + sort.h * 0.6, e.clientY - sort.y0 + (tBody.scrollTop - sort.s0)));
     sort.li.style.transform = `translateY(${dy}px)`;
     const c = sort.rects[sort.from].top + sort.h / 2 + dy;
     let to = sort.from;
