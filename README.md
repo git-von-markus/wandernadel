@@ -4,6 +4,11 @@ Karte aller 222 Stempelstellen der Harzer Wandernadel. Stempel abhaken, Fortschr
 
 **Online:** https://git-von-markus.github.io/wandernadel/
 
+## Touren planen (ab v1.2.0)
+- Stempel öffnen → „Zur Tour“, eigene Wegpunkte über „Wegpunkte setzen“
+- Reihenfolge nach echter Fußweg-Entfernung (OSRM), per Griff umsortierbar
+- Route über BRouter (Wanderprofil) mit km, Höhenmetern und Gehzeit, Export „GPX für Navigation“
+
 ## Aufs Handy
 - iPhone: in Safari öffnen → Teilen → „Zum Home-Bildschirm“
 - Android: in Chrome öffnen → ⋮ → „App installieren“
